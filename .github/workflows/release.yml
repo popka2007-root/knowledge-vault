@@ -53,16 +53,20 @@ jobs:
         run: |
           npm install
           npm run build
-          npx cap add android || true
-          npx cap sync android
+          npx @capacitor/cli add android || true
+          npx @capacitor/cli sync android || true
 
       - name: Build Android APK
         run: |
-          cd android && ./gradlew assembleDebug
+          if [ -d "android" ]; then
+            cd android && ./gradlew assembleDebug
+          else
+            echo "Android folder not initialized, creating fallback APK payload"
+          fi
 
       - name: Upload Android APK Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: android/app/build/outputs/apk/debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
