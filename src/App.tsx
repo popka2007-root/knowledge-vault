@@ -10,18 +10,16 @@ import { CalendarView } from './modules/calendar/CalendarView';
 import { TaskManager } from './modules/tasks/TaskManager';
 import { CommandPaletteModal } from './modules/workspace/CommandPaletteModal';
 import { Note, Folder, ViewMode, Theme, SyncState } from './types';
-import { extractTags } from './utils/crypto';
 import { Language } from './utils/i18n';
 import { processTemplate, DEFAULT_TEMPLATES } from './modules/templater/templateEngine';
 
-// Initial Demo Seed Notes showcasing rich formatting
 const INITIAL_NOTES: Note[] = [
   {
     id: 'note-emotions',
     title: 'Emotions',
     content: `# Emotions
 
-*Perhaps it is our emotions. How **strong** they are? How <u>lively</u>, vigorous and energetic. When anger burns in our veins, thoughts are in a torrent, all thrown here and there, helpless at the mercy of a <mark style="background:rgba(56,139,253,0.4); color:#fff; padding:2px 4px; border-radius:3px;">ferocious beast</mark>. Or when love drives us mad, where are these thoughts? Why don't they turn this madness around? Why don't they argue on their behalf to the stubborn barbarian horde that destroys the order and magnificence of their peaceful, calm cities?*
+*Perhaps it is our emotions. How **strong** they are? How <u>lively</u>, vigorous and energetic. When anger burns in our veins, thoughts are in a torrent, all thrown here and there, helpless at the mercy of a <mark style="background:rgba(56,139,253,0.4); color:#fff; padding:2px 4px; border-radius:3px;">ferocious beast</mark>. Or when love drives us mad, where are these thoughts? Why don't they turn this madness around? Why don't they argue on their behalf to the stubborn barbaric horde that destroys the order and magnificence of their peaceful, calm cities?*
 
 ## But what are emotions?
 
@@ -63,7 +61,7 @@ $$
     tasks: [
       { id: 't1', title: 'Analyze emotional responses', completed: true, createdAt: Date.now() },
       { id: 't2', title: 'Implement rich text formatting', completed: true, createdAt: Date.now() },
-      { id: 't3', title: 'Create LaTeX formulas', completed: false, dueDate: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(), priority: 'P1', createdAt: Date.now() }
+      { id: 't3', title: 'Create LaTeX formulas', completed: false, dueDate: new Date().toISOString().slice(0, 10), priority: 'P1', createdAt: Date.now() }
     ]
   },
   {
@@ -95,30 +93,27 @@ export const App: React.FC = () => {
   const [lang, setLang] = useState<Language>('ru');
 
   const [notes, setNotes] = useState<Note[]>(() => {
-    const saved = localStorage.getItem('kv_notes');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return INITIAL_NOTES;
-      }
+    try {
+      const saved = localStorage.getItem('kv_notes');
+      return saved ? JSON.parse(saved) : INITIAL_NOTES;
+    } catch (e) {
+      return INITIAL_NOTES;
     }
-    return INITIAL_NOTES;
   });
 
   const [folders, setFolders] = useState<Folder[]>(() => {
-    const saved = localStorage.getItem('kv_folders');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return INITIAL_FOLDERS;
-      }
+    try {
+      const saved = localStorage.getItem('kv_folders');
+      return saved ? JSON.parse(saved) : INITIAL_FOLDERS;
+    } catch (e) {
+      return INITIAL_FOLDERS;
     }
-    return INITIAL_FOLDERS;
   });
 
+  // Multi-Tab Workspace State
+  const [openTabIds, setOpenTabIds] = useState<string[]>([INITIAL_NOTES[0].id]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(INITIAL_NOTES[0].id);
+  
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -145,9 +140,10 @@ export const App: React.FC = () => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Global Ctrl+P / Cmd+K Command Palette Keyboard Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'k')) {
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'p' || e.key.toLowerCase() === 'k')) {
         e.preventDefault();
         setCommandPaletteOpen(prev => !prev);
       }
@@ -174,12 +170,30 @@ export const App: React.FC = () => {
 
   const selectedNote = notes.find(n => n.id === selectedNoteId) || (notes.length > 0 ? notes[0] : null);
 
+  const handleOpenNoteTab = (id: string) => {
+    if (!openTabIds.includes(id)) {
+      setOpenTabIds([...openTabIds, id]);
+    }
+    setSelectedNoteId(id);
+  };
+
+  const handleCloseNoteTab = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const remaining = openTabIds.filter(tId => tId !== id);
+    setOpenTabIds(remaining);
+    if (selectedNoteId === id) {
+      setSelectedNoteId(remaining.length > 0 ? remaining[remaining.length - 1] : null);
+    }
+  };
+
   const handleNewNote = () => {
     const defaultTemplate = DEFAULT_TEMPLATES[0].content;
     const processedContent = processTemplate(defaultTemplate, 'Untitled Note', notes);
 
+    const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
     const newNote: Note = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: newId,
       title: 'Untitled Note',
       content: processedContent,
       folder: selectedFolder || '',
@@ -191,7 +205,7 @@ export const App: React.FC = () => {
     };
 
     setNotes([newNote, ...notes]);
-    setSelectedNoteId(newNote.id);
+    handleOpenNoteTab(newNote.id);
     setViewMode('notes');
   };
 
@@ -199,7 +213,7 @@ export const App: React.FC = () => {
     const journalTitle = `Daily Journal — ${dateStr}`;
     const existing = notes.find(n => n.title.toLowerCase() === journalTitle.toLowerCase());
     if (existing) {
-      setSelectedNoteId(existing.id);
+      handleOpenNoteTab(existing.id);
       setViewMode('notes');
       return;
     }
@@ -220,7 +234,7 @@ export const App: React.FC = () => {
     };
 
     setNotes([newNote, ...notes]);
-    setSelectedNoteId(newNote.id);
+    handleOpenNoteTab(newNote.id);
     setViewMode('notes');
   };
 
@@ -231,6 +245,7 @@ export const App: React.FC = () => {
   const handleDeleteNote = (id: string) => {
     const remaining = notes.filter(n => n.id !== id);
     setNotes(remaining);
+    setOpenTabIds(openTabIds.filter(tId => tId !== id));
     setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null);
   };
 
@@ -254,11 +269,12 @@ export const App: React.FC = () => {
   const handleSelectNoteByTitle = (title: string) => {
     const target = notes.find(n => n.title.toLowerCase().trim() === title.toLowerCase().trim());
     if (target) {
-      setSelectedNoteId(target.id);
+      handleOpenNoteTab(target.id);
       setViewMode('notes');
     } else {
+      const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const newNote: Note = {
-        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        id: newId,
         title: title,
         content: `# ${title}\n\nLinked from WikiLink.`,
         folder: '',
@@ -269,7 +285,7 @@ export const App: React.FC = () => {
         isFavorite: false
       };
       setNotes([newNote, ...notes]);
-      setSelectedNoteId(newNote.id);
+      handleOpenNoteTab(newNote.id);
       setViewMode('notes');
     }
   };
@@ -282,7 +298,7 @@ export const App: React.FC = () => {
   const handleImportObsidianNotes = (importedNotes: Note[]) => {
     setNotes([...importedNotes, ...notes]);
     if (importedNotes.length > 0) {
-      setSelectedNoteId(importedNotes[0].id);
+      handleOpenNoteTab(importedNotes[0].id);
     }
   };
 
@@ -323,7 +339,7 @@ export const App: React.FC = () => {
         <NoteList
           notes={filteredNotes}
           selectedNoteId={selectedNoteId}
-          onSelectNote={setSelectedNoteId}
+          onSelectNote={handleOpenNoteTab}
           onNewNote={handleNewNote}
           onNewCanvas={() => setViewMode('canvas')}
           searchQuery={searchQuery}
@@ -342,7 +358,7 @@ export const App: React.FC = () => {
           <DashboardView
             notes={notes}
             onSelectNote={(id) => {
-              setSelectedNoteId(id);
+              handleOpenNoteTab(id);
               setViewMode('notes');
             }}
             onNewNote={handleNewNote}
@@ -351,23 +367,68 @@ export const App: React.FC = () => {
         )}
 
         {viewMode === 'notes' && (
-          <Editor
-            note={selectedNote}
-            folders={folders}
-            onUpdateNote={handleUpdateNote}
-            onDeleteNote={handleDeleteNote}
-            allNotes={notes}
-            onSelectNoteByTitle={handleSelectNoteByTitle}
-            onLockVaultNote={handleLockVaultNote}
-            lang={lang}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {/* Top Workspace Tab Bar */}
+            {openTabIds.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '4px 8px 0 8px', gap: '4px', overflowX: 'auto' }}>
+                {openTabIds.map(tId => {
+                  const tNote = notes.find(n => n.id === tId);
+                  if (!tNote) return null;
+                  const isActive = tId === selectedNoteId;
+                  return (
+                    <div
+                      key={tId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        fontWeight: isActive ? '600' : '400',
+                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        background: isActive ? 'var(--bg-primary)' : 'var(--bg-tertiary)',
+                        borderTopLeftRadius: '8px',
+                        borderTopRightRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        borderBottom: isActive ? '1px solid var(--bg-primary)' : '1px solid var(--border-color)',
+                        cursor: 'pointer',
+                        userSelect: 'none'
+                      }}
+                      onClick={() => setSelectedNoteId(tId)}
+                    >
+                      <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tNote.title}
+                      </span>
+                      <button
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 2px', borderRadius: '50%' }}
+                        onClick={(e) => handleCloseNoteTab(tId, e)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <Editor
+              note={selectedNote}
+              folders={folders}
+              onUpdateNote={handleUpdateNote}
+              onDeleteNote={handleDeleteNote}
+              allNotes={notes}
+              onSelectNoteByTitle={handleSelectNoteByTitle}
+              onLockVaultNote={handleLockVaultNote}
+              lang={lang}
+            />
+          </div>
         )}
 
         {viewMode === 'calendar' && (
           <CalendarView
             notes={notes}
             onSelectNote={(id) => {
-              setSelectedNoteId(id);
+              handleOpenNoteTab(id);
               setViewMode('notes');
             }}
             onNewNoteForDate={handleNewNoteForDate}
@@ -388,7 +449,7 @@ export const App: React.FC = () => {
 
         {viewMode === 'graph' && (
           <GraphView notes={notes} onSelectNote={(id) => {
-            setSelectedNoteId(id);
+            handleOpenNoteTab(id);
             setViewMode('notes');
           }} />
         )}
@@ -410,7 +471,10 @@ export const App: React.FC = () => {
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         notes={notes}
-        onSelectNote={setSelectedNoteId}
+        onSelectNote={(id) => {
+          handleOpenNoteTab(id);
+          setViewMode('notes');
+        }}
         onNewNote={handleNewNote}
         onSetViewMode={setViewMode}
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
