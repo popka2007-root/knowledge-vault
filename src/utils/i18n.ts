@@ -8,6 +8,9 @@ export const translations: Record<Language, Record<string, string>> = {
     favorites: 'Избранное',
     visualCanvas: 'Визуальный холст',
     graphView: 'Граф связей',
+    dashboardView: 'Панель управления',
+    calendarView: 'Календарь',
+    taskManagerView: 'Задачи и привычки',
     folders: 'Папки',
     tags: 'Теги',
     encryptedVault: 'Зашифрованный сейф',
@@ -45,7 +48,38 @@ export const translations: Record<Language, Record<string, string>> = {
     cancel: 'Отмена',
     lock: 'Заблокировать',
     unlock: 'Расшифровать',
-    language: 'Язык'
+    language: 'Язык',
+    
+    // Dashboard & Tasks
+    executiveDashboard: 'Главная панель управления',
+    quickStats: 'Быстрые показатели',
+    totalNotes: 'Всего заметок',
+    totalTasks: 'Всего задач',
+    completedTasks: 'Выполнено задач',
+    activeStreak: 'Серия дней 🔥',
+    productivityScore: 'Продуктивность',
+    recentNotes: 'Недавние заметки',
+    quickActions: 'Быстрые действия',
+    createJournal: 'Создать дневник',
+    exportObsidian: 'Экспорт в Obsidian',
+    importObsidian: 'Импорт из Obsidian',
+
+    // Calendar
+    today: 'Сегодня',
+    month: 'Месяц',
+    week: 'Неделя',
+    day: 'День',
+
+    // Tasks & Priorities
+    addTaskPlaceholder: 'Добавить новую задачу...',
+    priority: 'Приоритет',
+    dueDate: 'Срок',
+    category: 'Категория',
+
+    // Backlinks
+    backlinks: 'Обратные ссылки (Backlinks)',
+    noBacklinks: 'Нет обратных ссылок',
+    relatedNotes: 'Рекомендуемые заметки'
   },
   en: {
     appTitle: 'Knowledge Vault',
@@ -54,6 +88,9 @@ export const translations: Record<Language, Record<string, string>> = {
     favorites: 'Favorites',
     visualCanvas: 'Visual Canvas',
     graphView: 'Graph View',
+    dashboardView: 'Executive Dashboard',
+    calendarView: 'Calendar',
+    taskManagerView: 'Tasks & Habits',
     folders: 'Folders',
     tags: 'Tags',
     encryptedVault: 'Encrypted Vault',
@@ -91,7 +128,34 @@ export const translations: Record<Language, Record<string, string>> = {
     cancel: 'Cancel',
     lock: 'Lock Note',
     unlock: 'Unlock Note',
-    language: 'Language'
+    language: 'Language',
+
+    executiveDashboard: 'Executive Dashboard',
+    quickStats: 'Quick Stats',
+    totalNotes: 'Total Notes',
+    totalTasks: 'Total Tasks',
+    completedTasks: 'Completed Tasks',
+    activeStreak: 'Active Streak 🔥',
+    productivityScore: 'Productivity',
+    recentNotes: 'Recent Notes',
+    quickActions: 'Quick Actions',
+    createJournal: 'Create Daily Journal',
+    exportObsidian: 'Export to Obsidian',
+    importObsidian: 'Import from Obsidian',
+
+    today: 'Today',
+    month: 'Month',
+    week: 'Week',
+    day: 'Day',
+
+    addTaskPlaceholder: 'Add a new task...',
+    priority: 'Priority',
+    dueDate: 'Due Date',
+    category: 'Category',
+
+    backlinks: 'Backlinks',
+    noBacklinks: 'No backlinks found',
+    relatedNotes: 'Related Recommendations'
   },
   de: {
     appTitle: 'Knowledge Vault',
@@ -100,6 +164,9 @@ export const translations: Record<Language, Record<string, string>> = {
     favorites: 'Favoriten',
     visualCanvas: 'Visuelles Canvas',
     graphView: 'Graphenansicht',
+    dashboardView: 'Dashboard',
+    calendarView: 'Kalender',
+    taskManagerView: 'Aufgaben & Gewohnheiten',
     folders: 'Ordner',
     tags: 'Tags',
     encryptedVault: 'Verschlüsselter Tresor',
@@ -137,7 +204,34 @@ export const translations: Record<Language, Record<string, string>> = {
     cancel: 'Abbrechen',
     lock: 'Sperren',
     unlock: 'Entsperren',
-    language: 'Sprache'
+    language: 'Sprache',
+
+    executiveDashboard: 'Haupt-Dashboard',
+    quickStats: 'Schnellstatistik',
+    totalNotes: 'Gesamte Notizen',
+    totalTasks: 'Gesamte Aufgaben',
+    completedTasks: 'Erledigte Aufgaben',
+    activeStreak: 'Aktive Serie 🔥',
+    productivityScore: 'Produktivität',
+    recentNotes: 'Neueste Notizen',
+    quickActions: 'Schnellaktionen',
+    createJournal: 'Tagesjournal erstellen',
+    exportObsidian: 'Nach Obsidian exportieren',
+    importObsidian: 'Aus Obsidian importieren',
+
+    today: 'Heute',
+    month: 'Monat',
+    week: 'Woche',
+    day: 'Tag',
+
+    addTaskPlaceholder: 'Neue Aufgabe hinzufügen...',
+    priority: 'Priorität',
+    dueDate: 'Fälligkeitsdatum',
+    category: 'Kategorie',
+
+    backlinks: 'Backlinks',
+    noBacklinks: 'Keine Backlinks gefunden',
+    relatedNotes: 'Empfohlene Notizen'
   },
   es: {
     appTitle: 'Knowledge Vault',
@@ -146,6 +240,9 @@ export const translations: Record<Language, Record<string, string>> = {
     favorites: 'Favoritos',
     visualCanvas: 'Lienzo Visual',
     graphView: 'Vista de Gráfico',
+    dashboardView: 'Panel de Control',
+    calendarView: 'Calendario',
+    taskManagerView: 'Tareas y Hábitos',
     folders: 'Carpetas',
     tags: 'Etiquetas',
     encryptedVault: 'Bóveda Cifrada',
@@ -183,7 +280,34 @@ export const translations: Record<Language, Record<string, string>> = {
     cancel: 'Cancelar',
     lock: 'Bloquear',
     unlock: 'Desbloquear',
-    language: 'Idioma'
+    language: 'Idioma',
+
+    executiveDashboard: 'Panel de Control',
+    quickStats: 'Estadísticas Rápidas',
+    totalNotes: 'Notas Totales',
+    totalTasks: 'Tareas Totales',
+    completedTasks: 'Tareas Completadas',
+    activeStreak: 'Racha Activa 🔥',
+    productivityScore: 'Productividad',
+    recentNotes: 'Notas Recientes',
+    quickActions: 'Acciones Rápidas',
+    createJournal: 'Crear Diario',
+    exportObsidian: 'Exportar a Obsidian',
+    importObsidian: 'Importar de Obsidian',
+
+    today: 'Hoy',
+    month: 'Mes',
+    week: 'Semana',
+    day: 'Día',
+
+    addTaskPlaceholder: 'Añadir nueva tarea...',
+    priority: 'Prioridad',
+    dueDate: 'Fecha de vencimiento',
+    category: 'Categoría',
+
+    backlinks: 'Retroenlaces',
+    noBacklinks: 'Sin retroenlaces',
+    relatedNotes: 'Notas Recomendadas'
   },
   fr: {
     appTitle: 'Knowledge Vault',
@@ -192,6 +316,9 @@ export const translations: Record<Language, Record<string, string>> = {
     favorites: 'Favoris',
     visualCanvas: 'Canvas Visuel',
     graphView: 'Vue Graphe',
+    dashboardView: 'Tableau de Bord',
+    calendarView: 'Calendrier',
+    taskManagerView: 'Tâches & Habitudes',
     folders: 'Dossiers',
     tags: 'Tags',
     encryptedVault: 'Coffre Chiffré',
@@ -229,7 +356,34 @@ export const translations: Record<Language, Record<string, string>> = {
     cancel: 'Annuler',
     lock: 'Verrouiller',
     unlock: 'Déverrouiller',
-    language: 'Langue'
+    language: 'Langue',
+
+    executiveDashboard: 'Tableau de Bord',
+    quickStats: 'Statistiques Rapides',
+    totalNotes: 'Total des Notes',
+    totalTasks: 'Total des Tâches',
+    completedTasks: 'Tâches Terminées',
+    activeStreak: 'Série Active 🔥',
+    productivityScore: 'Productivité',
+    recentNotes: 'Notes Récentes',
+    quickActions: 'Actions Rapides',
+    createJournal: 'Créer un Journal',
+    exportObsidian: 'Exporter vers Obsidian',
+    importObsidian: 'Importer d\'Obsidian',
+
+    today: 'Aujourd\'hui',
+    month: 'Mois',
+    week: 'Semaine',
+    day: 'Jour',
+
+    addTaskPlaceholder: 'Ajouter une tâche...',
+    priority: 'Priorité',
+    dueDate: 'Échéance',
+    category: 'Catégorie',
+
+    backlinks: 'Rétroliens',
+    noBacklinks: 'Aucun rétrolien',
+    relatedNotes: 'Notes Recommandées'
   }
 };
 

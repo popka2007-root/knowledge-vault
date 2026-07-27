@@ -65,8 +65,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.editor-preview, .note-content, .editor-textarea {
-  user-select: text;
+/* Fix for Select Dropdown Options Styling Bug */
+select {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+select option {
+  background-color: #161b22 !important;
+  color: #f0f6fc !important;
+  padding: 8px 12px;
+}
+
+[data-theme="light"] select option {
+  background-color: #ffffff !important;
+  color: #1f2328 !important;
 }
 
 /* Custom Scrollbar */
@@ -260,6 +278,11 @@ input[type="checkbox"]:checked::after {
   border: none;
   outline: none;
   resize: none;
+  user-select: text;
+}
+
+.editor-preview, .note-content {
+  user-select: text;
 }
 
 /* Canvas Node Styling */
