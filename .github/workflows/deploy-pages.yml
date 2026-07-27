@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: write
 
 concurrency:
   group: 'pages'
@@ -25,30 +26,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Cancel any stuck Pages deployments
+      - name: Kill stuck github-pages deployments
         continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            try {
-              const deployments = await github.request('GET /repos/{owner}/{repo}/pages/deployments', {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                per_page: 10
-              });
-              for (const dep of deployments.data) {
-                if (dep.status === 'in_progress' || dep.status === 'queued' || dep.status === 'pending') {
-                  console.log(`Cancelling stuck deployment: ${dep.id} (${dep.status})`);
-                  await github.request('POST /repos/{owner}/{repo}/pages/deployments/{deployment_id}/cancel', {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    deployment_id: dep.id
-                  }).catch(e => console.log(`Cancel error: ${e.message}`));
-                }
-              }
-            } catch(e) {
-              console.log(`Could not list deployments: ${e.message}`);
-            }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Listing all github-pages deployments..."
+          DEPLOY_IDS=$(gh api repos/${{ github.repository }}/deployments \
+            --jq '.[] | select(.environment=="github-pages") | .id' \
+            --paginate 2>/dev/null || echo "")
+          for ID in $DEPLOY_IDS; do
+            echo "Marking deployment $ID as inactive..."
+            gh api repos/${{ github.repository }}/deployments/$ID/statuses \
+              -X POST -f state=inactive 2>/dev/null || true
+          done
+          echo "Done cleaning up."
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
