@@ -371,7 +371,7 @@ input[type="checkbox"]:checked::after {
   }
   .glass-panel {
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
   }
   .editor-textarea {
     height: calc(100vh - 260px);

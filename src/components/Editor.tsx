@@ -21,6 +21,15 @@ import { PageBanner } from '../modules/banners/PageBanner';
 import { BacklinksPanel } from '../modules/links/BacklinksPanel';
 import { executeDataviewQuery } from '../modules/dataview/queryEngine';
 
+const escapeHtml = (str: string) => {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 interface EditorProps {
   note: Note | null;
   folders: FolderType[];
@@ -215,21 +224,18 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  // Rich Markdown Renderer with Dataview query block support
   const renderMarkdown = (text: string) => {
     let rendered = text
-      .replace(/<(script|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
-      .replace(/\bon[a-z]+\s*=\s*"[^"]*"/gi, '')
-      .replace(/\bon[a-z]+\s*=\s*'[^']*'/gi, '')
-      .replace(/\bon[a-z]+\s*=\s*[^\s>]+/gi, '')
-      .replace(/(href|src)\s*=\s*"javascript:[^"]*"/gi, '$1="#"')
-      .replace(/(href|src)\s*=\s*'javascript:[^']*'/gi, "$1='#'")
-      .replace(/(href|src)\s*=\s*javascript:[^\s>]+/gi, '$1="#"')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
       // Dataview Query Codeblocks ```dataview ... ```
       .replace(/```dataview\n([\s\S]*?)```/g, (_, queryStr) => {
         const queryRes = executeDataviewQuery(queryStr, allNotes, note.tasks || []);
-        const rowsHtml = queryRes.rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 12px; border:1px solid var(--border-color);">${c}</td>`).join('')}</tr>`).join('');
-        const headersHtml = queryRes.headers ? `<thead><tr style="background:var(--bg-tertiary);">${queryRes.headers.map(h => `<th style="padding:6px 12px; border:1px solid var(--border-color);">${h}</th>`).join('')}</tr></thead>` : '';
+        const rowsHtml = queryRes.rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('');
+        const headersHtml = queryRes.headers ? `<thead><tr style="background:var(--bg-tertiary);">${queryRes.headers.map(h => `<th style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(h))}</th>`).join('')}</tr></thead>` : '';
         return `<div style="margin:14px 0; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"><div style="background:var(--bg-secondary); padding:8px 12px; font-size:12px; font-weight:600; color:var(--accent-hover);">📊 Dataview Query Result (${queryRes.totalCount} items)</div><table style="width:100%; border-collapse:collapse; font-size:12.5px;">${headersHtml}<tbody>${rowsHtml}</tbody></table></div>`;
       })
       // LaTeX Math Block $$ ... $$
@@ -388,6 +394,7 @@ export const Editor: React.FC<EditorProps> = ({
                 <TagIcon size={11} />
                 #{tag}
                 <button 
+                  aria-label={`Remove tag ${tag}`}
                   style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', marginLeft: '4px' }}
                   onClick={() => handleRemoveTag(tag)}
                 >

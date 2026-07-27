@@ -122,6 +122,16 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('dark');
   const [syncState, setSyncState] = useState<SyncState>('synced');
   
+  // Mobile Responsiveness State
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [mobileView, setMobileView] = useState<'sidebar' | 'notelist' | 'workspace'>('sidebar');
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Modals
   const [vaultModalOpen, setVaultModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -129,11 +139,23 @@ export const App: React.FC = () => {
 
   // Sync to LocalStorage
   useEffect(() => {
-    localStorage.setItem('kv_notes', JSON.stringify(notes));
+    try {
+      localStorage.setItem('kv_notes', JSON.stringify(notes));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        alert('Storage quota exceeded! Cannot save notes.');
+      }
+    }
   }, [notes]);
 
   useEffect(() => {
-    localStorage.setItem('kv_folders', JSON.stringify(folders));
+    try {
+      localStorage.setItem('kv_folders', JSON.stringify(folders));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        alert('Storage quota exceeded! Cannot save folders.');
+      }
+    }
   }, [folders]);
 
   useEffect(() => {
@@ -175,6 +197,7 @@ export const App: React.FC = () => {
       setOpenTabIds([...openTabIds, id]);
     }
     setSelectedNoteId(id);
+    if (isMobile) setMobileView('workspace');
   };
 
   const handleCloseNoteTab = (id: string, e: React.MouseEvent) => {
@@ -305,10 +328,16 @@ export const App: React.FC = () => {
   return (
     <div className="app-container">
       {/* 1st Column: Sidebar Navigation */}
+      {(!isMobile || mobileView === 'sidebar') && (
       <Sidebar
         notes={notes}
         viewMode={viewMode}
-        setViewMode={setViewMode}
+        setViewMode={(mode) => {
+          setViewMode(mode);
+          if (isMobile) {
+            setMobileView(mode === 'notes' ? 'notelist' : 'workspace');
+          }
+        }}
         folders={folders}
         selectedFolder={selectedFolder}
         setSelectedFolder={setSelectedFolder}
@@ -333,9 +362,18 @@ export const App: React.FC = () => {
         setLang={setLang}
         onImportObsidianNotes={handleImportObsidianNotes}
       />
+      )}
 
       {/* 2nd Column: Note List (Shown when in 'notes' mode) */}
-      {viewMode === 'notes' && (
+      {(!isMobile || mobileView === 'notelist') && viewMode === 'notes' && (
+        <div style={{ display: 'flex', flexDirection: 'column', width: isMobile ? '100%' : 'auto', height: '100%' }}>
+          {isMobile && (
+            <div style={{ padding: '8px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+              <button className="btn" onClick={() => setMobileView('sidebar')}>
+                ← Menu
+              </button>
+            </div>
+          )}
         <NoteList
           notes={filteredNotes}
           selectedNoteId={selectedNoteId}
@@ -350,10 +388,19 @@ export const App: React.FC = () => {
           onToggleFavorite={handleToggleFavorite}
           lang={lang}
         />
+        </div>
       )}
 
       {/* 3rd Main Workspace Column */}
+      {(!isMobile || mobileView === 'workspace') && (
       <main style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {isMobile && (
+          <div style={{ padding: '8px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+            <button className="btn" onClick={() => setMobileView(viewMode === 'notes' ? 'notelist' : 'sidebar')}>
+              ← Back
+            </button>
+          </div>
+        )}
         {viewMode === 'dashboard' && (
           <DashboardView
             notes={notes}
@@ -454,6 +501,7 @@ export const App: React.FC = () => {
           }} />
         )}
       </main>
+      )}
 
       {/* Encrypted Vault Modal */}
       <VaultModal
