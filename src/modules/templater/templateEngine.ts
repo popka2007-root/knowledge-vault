@@ -14,7 +14,14 @@ export function processTemplate(
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  const dateStr = now.toISOString().slice(0, 10);
+  const getLocalDateString = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const dateStr = getLocalDateString(now);
   const timeStr = now.toTimeString().slice(0, 5);
   const weekdayStr = days[now.getDay()];
   const monthStr = months[now.getMonth()];
@@ -25,11 +32,11 @@ export function processTemplate(
   const todayStr = dateStr;
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  const tomorrowStr = getLocalDateString(tomorrow);
 
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const yesterdayStr = getLocalDateString(yesterday);
 
   // Week number
   const firstJan = new Date(now.getFullYear(), 0, 1);

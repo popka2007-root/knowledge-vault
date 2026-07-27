@@ -91,10 +91,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ notes, onSelectNote,
             if (!day) return <div key={`empty-${idx}`} style={{ background: 'transparent' }} />;
 
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+            const getLocalDateString = (d: Date) => {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const dNum = String(d.getDate()).padStart(2, '0');
+              return `${y}-${m}-${dNum}`;
+            };
+            const isToday = getLocalDateString(new Date()) === dateStr;
 
             // Notes on this date
-            const dayNotes = notes.filter(n => new Date(n.createdAt).toISOString().slice(0, 10) === dateStr);
+            const dayNotes = notes.filter(n => getLocalDateString(new Date(n.createdAt)) === dateStr);
 
             return (
               <div

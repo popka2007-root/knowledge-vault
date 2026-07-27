@@ -188,6 +188,14 @@ export const Editor: React.FC<EditorProps> = ({
   // Rich Markdown Renderer with Dataview query block support
   const renderMarkdown = (text: string) => {
     let rendered = text
+      // Strip dangerous HTML injection payloads without altering block quote or Dataview operators
+      .replace(/<(script|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+      .replace(/\bon[a-z]+\s*=\s*"[^"]*"/gi, '')
+      .replace(/\bon[a-z]+\s*=\s*'[^']*'/gi, '')
+      .replace(/\bon[a-z]+\s*=\s*[^\s>]+/gi, '')
+      .replace(/(href|src)\s*=\s*"javascript:[^"]*"/gi, '$1="#"')
+      .replace(/(href|src)\s*=\s*'javascript:[^']*'/gi, "$1='#'")
+      .replace(/(href|src)\s*=\s*javascript:[^\s>]+/gi, '$1="#"')
       // Dataview Query Codeblocks ```dataview ... ```
       .replace(/```dataview\n([\s\S]*?)```/g, (_, queryStr) => {
         const queryRes = executeDataviewQuery(queryStr, allNotes, note.tasks || []);
@@ -196,9 +204,9 @@ export const Editor: React.FC<EditorProps> = ({
         return `<div style="margin:14px 0; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"><div style="background:var(--bg-secondary); padding:8px 12px; font-size:12px; font-weight:600; color:var(--accent-hover);">📊 Dataview Query Result (${queryRes.totalCount} items)</div><table style="width:100%; border-collapse:collapse; font-size:12.5px;">${headersHtml}<tbody>${rowsHtml}</tbody></table></div>`;
       })
       // LaTeX Math Block $$ ... $$
-      .replace(/\$\$\n?([\s\S]*?)\n?\$\$/g, '<div style="background:var(--bg-tertiary); padding:12px; border-radius:6px; font-family:var(--font-mono); color:var(--vault-purple); margin:12px 0; text-align:center; border:1px solid var(--border-color); font-size:16px;">∫ <strong>$1</strong></div>')
+      .replace(/\$\$\n?([\s\S]*?)\n?\$\$/g, '<div style="background:var(--bg-tertiary); padding:12px; border-radius:6px; font-family:var(--font-mono); color:var(--vault-purple); margin:12px 0; text-align:center; border:1px solid var(--border-color); font-size:16px;"><strong>$1</strong></div>')
       // Inline Math $ ... $
-      .replace(/\$([^\$]+)\$/g, '<code style="background:rgba(163,113,247,0.2); color:var(--vault-purple); padding:2px 6px; border-radius:4px;">$1</code>')
+      .replace(/\$(?!\s)([^$]+?)(?<!\s)\$/g, '<code style="background:rgba(163,113,247,0.2); color:var(--vault-purple); padding:2px 6px; border-radius:4px;">$1</code>')
       // Codeblocks ``` ... ```
       .replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre style="background:#090d13; padding:14px; border-radius:8px; font-family:var(--font-mono); font-size:13px; color:#e6edf3; overflow-x:auto; margin:14px 0; border:1px solid var(--border-color);"><code>$2</code></pre>')
       // Task Lists (- [ ] or - [x])

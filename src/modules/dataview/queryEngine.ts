@@ -31,7 +31,8 @@ export function executeDataviewQuery(
   // 1. Task Queries
   if (lower.includes('task') || lower.includes('задач')) {
     let filteredTasks = [...allTasks];
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     if (lower.includes('overdue') || lower.includes('просрочен')) {
       filteredTasks = filteredTasks.filter(t => !t.completed && t.dueDate && t.dueDate < todayStr);
@@ -63,7 +64,7 @@ export function executeDataviewQuery(
   let filteredNotes = [...notes];
 
   // Filter by tag
-  const tagMatch = lower.match(/tag\s*=\s*#?([a-zA-Z0-9_\-]+)/);
+  const tagMatch = lower.match(/tag\s*=\s*#?([\p{L}0-9_\-]+)/u);
   if (tagMatch) {
     const targetTag = tagMatch[1];
     filteredNotes = filteredNotes.filter(n => n.tags.map(t => t.toLowerCase()).includes(targetTag.toLowerCase()));

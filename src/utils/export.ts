@@ -1,5 +1,17 @@
 import { Note } from '../types';
 
+const sanitize = (text: string) => {
+  if (!text) return '';
+  return text
+    .replace(/<(script|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/\bon[a-z]+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\bon[a-z]+\s*=\s*'[^']*'/gi, '')
+    .replace(/\bon[a-z]+\s*=\s*[^\s>]+/gi, '')
+    .replace(/(href|src)\s*=\s*"javascript:[^"]*"/gi, '$1="#"')
+    .replace(/(href|src)\s*=\s*'javascript:[^']*'/gi, "$1='#'")
+    .replace(/(href|src)\s*=\s*javascript:[^\s>]+/gi, '$1="#"');
+};
+
 /**
  * Triggers printing / saving to PDF using browser print dialog
  */
@@ -19,8 +31,8 @@ export function exportNoteToPDF(note: Note) {
         </style>
       </head>
       <body>
-        <h1>${note.title}</h1>
-        <div>${note.content.replace(/\n/g, '<br/>')}</div>
+        <h1>${sanitize(note.title)}</h1>
+        <div>${sanitize(note.content).replace(/\n/g, '<br/>')}</div>
         <script>
           window.onload = function() { window.print(); window.close(); }
         </script>
@@ -48,8 +60,8 @@ export function exportNoteToHTML(note: Note) {
         </style>
       </head>
       <body>
-        <h1>${note.title}</h1>
-        <div>${note.content.replace(/\n/g, '<br/>')}</div>
+        <h1>${sanitize(note.title)}</h1>
+        <div>${sanitize(note.content).replace(/\n/g, '<br/>')}</div>
       </body>
     </html>
   `;
