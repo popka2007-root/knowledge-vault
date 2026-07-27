@@ -16,6 +16,7 @@
     "@capacitor/android": "^5.7.0",
     "@capacitor/core": "^5.7.0",
     "crypto-js": "^4.2.0",
+    "d3": "^7.9.0",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@capacitor/cli": "^5.7.0",
     "@types/crypto-js": "^4.2.2",
+    "@types/d3": "^7.4.3",
     "@types/node": "^20.11.24",
     "@types/react": "^18.2.61",
     "@types/react-dom": "^18.2.19",

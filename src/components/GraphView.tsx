@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ZoomIn, ZoomOut, RefreshCw, Layers } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Layers } from 'lucide-react';
+import * as d3 from 'd3';
 import { Note } from '../types';
 import { extractWikiLinks } from '../utils/crypto';
 
@@ -8,42 +9,57 @@ interface GraphViewProps {
   onSelectNote: (id: string) => void;
 }
 
-interface NodeItem {
+interface NodeDatum extends d3.SimulationNodeDatum {
   id: string;
   title: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
   color: string;
+  radius: number;
   linkCount: number;
 }
 
-interface LinkItem {
-  source: string;
-  target: string;
+interface LinkDatum extends d3.SimulationLinkDatum<NodeDatum> {
+  source: string | NodeDatum;
+  target: string | NodeDatum;
 }
 
 export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [zoom, setZoom] = useState<number>(1);
-  const [hoveredNode, setHoveredNode] = useState<NodeItem | null>(null);
+  
+  // Track hover state outside of d3 react cycle
+  const hoveredNodeIdRef = useRef<string | null>(null);
 
-  const nodesRef = useRef<NodeItem[]>([]);
-  const linksRef = useRef<LinkItem[]>([]);
-  const animFrameRef = useRef<number | null>(null);
-
-  // Initialize graph nodes & links from note WikiLinks
   useEffect(() => {
+    if (!canvasRef.current || !containerRef.current) return;
+    
+    const container = containerRef.current;
     const canvas = canvasRef.current;
-    const width = canvas ? canvas.clientWidth : 800;
-    const height = canvas ? canvas.clientHeight : 600;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    // Calculate WikiLinks connections
-    const links: LinkItem[] = [];
+    // Resize observer to keep canvas perfectly scaled for High DPI (Retina)
+    const resizeCanvas = () => {
+      const { clientWidth, clientHeight } = container;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = clientWidth * dpr;
+      canvas.height = clientHeight * dpr;
+      canvas.style.width = `${clientWidth}px`;
+      canvas.style.height = `${clientHeight}px`;
+      ctx.scale(dpr, dpr);
+      
+      // Update center force on resize
+      if (simulation) {
+        simulation.force('center', d3.forceCenter(clientWidth / 2, clientHeight / 2));
+        simulation.alpha(0.3).restart();
+      }
+    };
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // Build Graph Data
     const linkCounts: Record<string, number> = {};
-
+    const links: LinkDatum[] = [];
+    
     notes.forEach(note => {
       linkCounts[note.id] = linkCounts[note.id] || 0;
       const wikiLinks = extractWikiLinks(note.content);
@@ -58,229 +74,243 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
     });
 
     const colors = ['#1f6feb', '#a371f7', '#2ea043', '#d29922', '#f85149'];
-    const nodes: NodeItem[] = notes.map((note, idx) => {
-      const count = linkCounts[note.id] || 0;
-      const radius = Math.min(Math.max(12 + count * 4, 12), 32);
-      const angle = (idx / notes.length) * Math.PI * 2;
-      const distance = 150 + Math.random() * 100;
-      return {
-        id: note.id,
-        title: note.title,
-        x: width / 2 + Math.cos(angle) * distance,
-        y: height / 2 + Math.sin(angle) * distance,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        radius,
-        color: colors[idx % colors.length],
-        linkCount: count
-      };
+    const nodes: NodeDatum[] = notes.map((note, idx) => ({
+      id: note.id,
+      title: note.title,
+      color: colors[idx % colors.length],
+      linkCount: linkCounts[note.id] || 0,
+      radius: Math.min(Math.max(5 + (linkCounts[note.id] || 0) * 1.5, 5), 18), // Sizes like Obsidian based on connections
+    }));
+
+    // Precalculate adjacency list for fast hover highlighting
+    const adjacencyList = new Map<string, Set<string>>();
+    nodes.forEach(n => adjacencyList.set(n.id, new Set()));
+    links.forEach(l => {
+      adjacencyList.get(l.source as string)?.add(l.target as string);
+      adjacencyList.get(l.target as string)?.add(l.source as string);
     });
 
-    nodesRef.current = nodes;
-    linksRef.current = links;
-  }, [notes]);
+    let currentTransform = d3.zoomIdentity;
 
-  // Physics force simulation loop
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    // Simulation
+    const simulation = d3.forceSimulation<NodeDatum>(nodes)
+      .force('charge', d3.forceManyBody().strength(-200).distanceMax(500))
+      .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(80))
+      .force('center', d3.forceCenter(container.clientWidth / 2, container.clientHeight / 2))
+      .force('collide', d3.forceCollide().radius(d => (d as NodeDatum).radius + 15).iterations(2))
+      .on('tick', draw);
 
-    const runSimulation = () => {
-      // Ensure canvas internal resolution matches CSS display size
-      const cssWidth = Math.max(canvas.clientWidth, 300);
-      const cssHeight = Math.max(canvas.clientHeight, 300);
-      if (canvas.width !== cssWidth || canvas.height !== cssHeight) {
-        canvas.width = cssWidth;
-        canvas.height = cssHeight;
-      }
+    // Draw Function
+    function draw() {
+      if (!ctx || !container) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      // Fill with dark theme background like Obsidian
+      ctx.fillStyle = '#0d1117';
+      ctx.fillRect(0, 0, width, height);
       
-      const width = canvas.width;
-      const height = canvas.height;
+      ctx.save();
+      ctx.translate(currentTransform.x, currentTransform.y);
+      ctx.scale(currentTransform.k, currentTransform.k);
 
-      const nodes = nodesRef.current;
-      const links = linksRef.current;
-
-      // Apply Center Gravity to keep nodes from flying off
-      nodes.forEach(n => {
-        const dx = (width / 2) - n.x;
-        const dy = (height / 2) - n.y;
-        n.vx += dx * 0.002;
-        n.vy += dy * 0.002;
-      });
-
-      // Apply Repulsion between nodes
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const n1 = nodes[i];
-          const n2 = nodes[j];
-          const dx = n2.x - n1.x;
-          const dy = n2.y - n1.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          if (dist < 200) {
-            const force = (200 - dist) / dist * 0.05;
-            n1.vx -= dx * force;
-            n1.vy -= dy * force;
-            n2.vx += dx * force;
-            n2.vy += dy * force;
-          }
-        }
-      }
-
-      // Apply Attraction along WikiLink connections
-      links.forEach(link => {
-        const n1 = nodes.find(n => n.id === link.source);
-        const n2 = nodes.find(n => n.id === link.target);
-        if (n1 && n2) {
-          const dx = n2.x - n1.x;
-          const dy = n2.y - n1.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = (dist - 100) * 0.005;
-          n1.vx += dx * force;
-          n1.vy += dy * force;
-          n2.vx -= dx * force;
-          n2.vy -= dy * force;
-        }
-      });
-
-      // Update positions with damping
-      nodes.forEach(n => {
-        n.vx *= 0.85;
-        n.vy *= 0.85;
-        n.x += n.vx;
-        n.y += n.vy;
-
-        // Keep inside bounds
-        n.x = Math.max(n.radius, Math.min(width - n.radius, n.x));
-        n.y = Math.max(n.radius, Math.min(height - n.radius, n.y));
-      });
-
-      // Render Canvas
-      ctx.clearRect(0, 0, width, height);
-
-      // Draw Grid Background
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-      ctx.lineWidth = 1;
-      const gridSize = 40;
-      for (let x = 0; x < width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+      const hoveredId = hoveredNodeIdRef.current;
+      let connectedIds: Set<string> | null = null;
+      if (hoveredId) {
+        connectedIds = adjacencyList.get(hoveredId) || new Set();
       }
 
       // Draw Links
       links.forEach(link => {
-        const n1 = nodes.find(n => n.id === link.source);
-        const n2 = nodes.find(n => n.id === link.target);
-        if (n1 && n2) {
-          ctx.beginPath();
-          ctx.moveTo(n1.x, n1.y);
-          ctx.lineTo(n2.x, n2.y);
-          ctx.strokeStyle = 'rgba(88, 166, 255, 0.35)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
+        const source = link.source as NodeDatum;
+        const target = link.target as NodeDatum;
+        
+        let isHighlighted = false;
+        let isDimmed = false;
+
+        if (hoveredId) {
+          if (source.id === hoveredId || target.id === hoveredId) {
+            isHighlighted = true;
+          } else {
+            isDimmed = true;
+          }
         }
+
+        ctx.beginPath();
+        ctx.moveTo(source.x || 0, source.y || 0);
+        ctx.lineTo(target.x || 0, target.y || 0);
+        
+        if (isHighlighted) {
+          ctx.strokeStyle = 'rgba(88, 166, 255, 0.9)'; // Bright blue for active links
+          ctx.lineWidth = Math.max(2 / currentTransform.k, 1.5);
+        } else if (isDimmed) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'; // Barely visible when something else is hovered
+          ctx.lineWidth = Math.max(1 / currentTransform.k, 0.5);
+        } else {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; // Default subtle link
+          ctx.lineWidth = Math.max(1 / currentTransform.k, 0.5);
+        }
+        
+        ctx.stroke();
       });
 
       // Draw Nodes
-      nodes.forEach(n => {
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-        ctx.fillStyle = n.color;
-        ctx.shadowColor = n.color;
-        ctx.shadowBlur = 12;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+      nodes.forEach(node => {
+        let isHovered = false;
+        let isNeighbor = false;
+        let isDimmed = false;
 
-        // Draw Node Titles
-        ctx.fillStyle = '#f0f6fc';
-        ctx.font = '12px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(n.title, n.x, n.y + n.radius + 16);
+        if (hoveredId) {
+          if (node.id === hoveredId) {
+            isHovered = true;
+          } else if (connectedIds?.has(node.id)) {
+            isNeighbor = true;
+          } else {
+            isDimmed = true;
+          }
+        }
+
+        ctx.beginPath();
+        ctx.moveTo((node.x || 0) + node.radius, node.y || 0);
+        ctx.arc(node.x || 0, node.y || 0, node.radius, 0, 2 * Math.PI);
+        
+        if (isDimmed) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        } else {
+          ctx.fillStyle = node.color;
+        }
+
+        // Obsidian-like glow for hovered/neighbors
+        if (isHovered || isNeighbor) {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = node.color;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        
+        ctx.fill();
+        ctx.shadowBlur = 0; // reset
+        
+        // Draw Labels
+        // Show labels if hovered, neighbor, zoomed in enough, or if it's a big node
+        if (!isDimmed && (currentTransform.k > 1.2 || isHovered || isNeighbor || node.radius > 8)) {
+          const fontSize = Math.max(11 / currentTransform.k, 5);
+          ctx.font = `500 ${fontSize}px Inter, sans-serif`;
+          ctx.fillStyle = (isHovered || isNeighbor) ? '#ffffff' : 'rgba(255, 255, 255, 0.7)';
+          ctx.textAlign = 'center';
+          ctx.fillText(node.title, node.x || 0, (node.y || 0) + node.radius + (14 / currentTransform.k));
+        }
       });
 
-      animFrameRef.current = requestAnimationFrame(runSimulation);
-    };
+      ctx.restore();
+    }
 
-    runSimulation();
+    // Interaction Setup
+    const d3Canvas = d3.select(canvas);
+
+    // Zoom & Pan
+    const zoomBehavior = d3.zoom<HTMLCanvasElement, unknown>()
+      .scaleExtent([0.1, 4])
+      .on('zoom', (event) => {
+        currentTransform = event.transform;
+        draw();
+      });
+      
+    d3Canvas.call(zoomBehavior);
+    
+    // Double click to reset zoom
+    d3Canvas.on('dblclick.zoom', null);
+    d3Canvas.on('dblclick', () => {
+      d3Canvas.transition().duration(750).call(zoomBehavior.transform, d3.zoomIdentity);
+    });
+
+    // Drag
+    d3Canvas.call(d3.drag<HTMLCanvasElement, unknown>()
+      .subject((event) => {
+        const [x, y] = currentTransform.invert([event.x, event.y]);
+        let closestNode = null;
+        let minDistance = Infinity;
+        for (const node of nodes) {
+          const dx = x - (node.x || 0);
+          const dy = y - (node.y || 0);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < node.radius + 10 && dist < minDistance) {
+            minDistance = dist;
+            closestNode = node;
+          }
+        }
+        return closestNode;
+      })
+      .on('start', (event) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+        document.body.style.cursor = 'grabbing';
+      })
+      .on('drag', (event) => {
+        event.subject.fx = currentTransform.invertX(event.x);
+        event.subject.fy = currentTransform.invertY(event.y);
+      })
+      .on('end', (event) => {
+        if (!event.active) simulation.alphaTarget(0);
+        event.subject.fx = null;
+        event.subject.fy = null;
+        document.body.style.cursor = 'default';
+      })
+    );
+
+    // Hover (MouseMove) & Click
+    d3Canvas.on('mousemove', (event) => {
+      const [x, y] = currentTransform.invert(d3.pointer(event));
+      let closestNode: NodeDatum | null = null;
+      let minDistance = Infinity;
+      
+      for (const node of nodes) {
+        const dx = x - (node.x || 0);
+        const dy = y - (node.y || 0);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        // generously increase hit area for hover
+        if (dist < node.radius + 8 && dist < minDistance) {
+          minDistance = dist;
+          closestNode = node;
+        }
+      }
+
+      if (closestNode?.id !== hoveredNodeIdRef.current) {
+        hoveredNodeIdRef.current = closestNode?.id || null;
+        canvas.style.cursor = closestNode ? 'pointer' : 'default';
+        draw();
+      }
+    });
+
+    d3Canvas.on('click', (event) => {
+      // Prevent click if we were dragging
+      if (event.defaultPrevented) return;
+      if (hoveredNodeIdRef.current) {
+        onSelectNote(hoveredNodeIdRef.current);
+      }
+    });
+
+    // Initial sizing
+    resizeCanvas();
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      window.removeEventListener('resize', resizeCanvas);
+      simulation.stop();
     };
-  }, []);
-
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    const clickedNode = nodesRef.current.find(n => {
-      const dx = clickX - n.x;
-      const dy = clickY - n.y;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius;
-    });
-
-    if (clickedNode) {
-      onSelectNote(clickedNode.id);
-    }
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const targetNode = nodesRef.current.find(n => {
-      const dx = mouseX - n.x;
-      const dy = mouseY - n.y;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius;
-    });
-
-    setHoveredNode(targetNode || null);
-  };
+  }, [notes, onSelectNote]);
 
   return (
-    <div style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
-      {/* Top Header Floating Bar */}
+    <div ref={containerRef} style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-secondary)', padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border-color)', backdropFilter: 'blur(12px)' }}>
         <Layers size={18} style={{ color: 'var(--accent-hover)' }} />
         <div>
-          <h2 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>Obsidian Force-Directed Graph</h2>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{notes.length} Notes connected via [[WikiLinks]]</p>
+          <h2 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>Obsidian Graph View</h2>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{notes.length} Notes (Powered by D3.js)</p>
         </div>
       </div>
-
-      {/* Hover Card Tooltip */}
-      {hoveredNode && (
-        <div style={{ position: 'absolute', bottom: '20px', left: '20px', zIndex: 20, background: 'var(--bg-secondary)', border: '1px solid var(--border-focus)', borderRadius: '8px', padding: '10px 14px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
-          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{hoveredNode.title}</div>
-          <div style={{ fontSize: '11px', color: 'var(--accent-hover)' }}>{hoveredNode.linkCount} [[WikiLinks]] connections</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>Click node to open note</div>
-        </div>
-      )}
-
-      {/* HTML5 Interactive Graph Canvas */}
-      <canvas
-        ref={canvasRef}
-        onClick={handleCanvasClick}
-        onMouseMove={handleCanvasMouseMove}
-        style={{ width: '100%', height: '100%', cursor: hoveredNode ? 'pointer' : 'default' }}
-      />
+      
+      <canvas ref={canvasRef} style={{ display: 'block' }} />
     </div>
   );
 };
