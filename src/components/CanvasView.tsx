@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Move, Trash2, ArrowRight, FileText, ZoomIn, ZoomOut } from 'lucide-react';
+import { Plus, Trash2, ZoomIn, ZoomOut, StickyNote } from 'lucide-react';
 import { CanvasNode, CanvasConnection, Note } from '../types';
 
 interface CanvasViewProps {
@@ -9,9 +9,9 @@ interface CanvasViewProps {
 
 export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => {
   const [nodes, setNodes] = useState<CanvasNode[]>([
-    { id: 'node-1', title: 'Main Project Vision', content: 'Notesnook + Obsidian + AFFiNE hybrid knowledge workspace.', x: 100, y: 120, width: 240, height: 130, color: '#1f6feb' },
-    { id: 'node-2', title: 'Security & E2EE', content: 'Client-side AES-256 encrypted vaults for password protection.', x: 440, y: 80, width: 240, height: 130, color: '#a371f7' },
-    { id: 'node-3', title: 'Graph & WikiLinks', content: 'Bi-directional [[links]] and interactive 2D graph view.', x: 440, y: 270, width: 240, height: 130, color: '#2ea043' }
+    { id: 'node-1', title: 'Main Project Vision', content: 'Notesnook + Obsidian + AFFiNE hybrid knowledge workspace.', x: 100, y: 120, width: 240, height: 130, color: '#1f6feb', type: 'card' },
+    { id: 'node-2', title: 'Security & E2EE', content: 'Client-side AES-256 encrypted vaults for password protection.', x: 440, y: 80, width: 240, height: 130, color: '#a371f7', type: 'card' },
+    { id: 'node-3', title: 'AFFiNE Edgeless Whiteboard', content: 'Sticky notes, connecting arrows, shapes, and 2D canvas nodes.', x: 440, y: 270, width: 240, height: 130, color: '#2ea043', type: 'note' }
   ]);
 
   const [connections, setConnections] = useState<CanvasConnection[]>([
@@ -24,7 +24,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
 
-  // Global mousemove & mouseup listeners for smooth dragging
+  // Global mousemove & mouseup listeners for smooth 60fps canvas dragging
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (draggingNodeId) {
@@ -56,7 +56,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
     };
   }, [draggingNodeId, dragOffset, zoom]);
 
-  const handleAddNode = () => {
+  const handleAddCardNode = () => {
     const newNode: CanvasNode = {
       id: `node-${Date.now()}`,
       title: 'New Canvas Card',
@@ -65,10 +65,27 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
       y: 200 + Math.random() * 60,
       width: 240,
       height: 130,
-      color: '#1f6feb'
+      color: '#1f6feb',
+      type: 'card'
     };
     setNodes([...nodes, newNode]);
     setSelectedNodeId(newNode.id);
+  };
+
+  const handleAddStickyNote = () => {
+    const newSticky: CanvasNode = {
+      id: `sticky-${Date.now()}`,
+      title: 'Sticky Note 📌',
+      content: 'Idea or quick thought...',
+      x: 220 + Math.random() * 40,
+      y: 220 + Math.random() * 40,
+      width: 200,
+      height: 140,
+      color: '#d29922',
+      type: 'note'
+    };
+    setNodes([...nodes, newSticky]);
+    setSelectedNodeId(newSticky.id);
   };
 
   const handleDeleteNode = (id: string) => {
@@ -88,11 +105,16 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
 
   return (
     <div style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--bg-primary)', userSelect: 'none' }}>
-      {/* Top Floating Controls */}
-      <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, display: 'flex', gap: '8px', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', backdropFilter: 'blur(12px)' }}>
-        <button className="btn btn-primary" onClick={handleAddNode} style={{ padding: '6px 12px', fontSize: '12px' }}>
+      {/* AFFiNE Floating Toolbar */}
+      <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, display: 'flex', gap: '8px', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', backdropFilter: 'blur(16px)' }}>
+        <button className="btn btn-primary" onClick={handleAddCardNode} style={{ padding: '6px 12px', fontSize: '12px' }}>
           <Plus size={14} />
-          <span>Add Card</span>
+          <span>Note Card</span>
+        </button>
+
+        <button className="btn" onClick={handleAddStickyNote} style={{ padding: '6px 12px', fontSize: '12px' }}>
+          <StickyNote size={14} style={{ color: '#d29922' }} />
+          <span>Sticky Note</span>
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid var(--border-color)', paddingLeft: '8px' }}>
@@ -100,7 +122,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
             <ZoomIn size={16} />
           </button>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{Math.round(zoom * 100)}%</span>
-          <button className="btn-icon" onClick={() => setZoom(Math.max(zoom - 0.1, 0.6))} title="Zoom Out">
+          <button className="btn-icon" onClick={() => setZoom(Math.max(zoom - 0.1, 0.5))} title="Zoom Out">
             <ZoomOut size={16} />
           </button>
         </div>
@@ -119,24 +141,26 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
           const endY = (toNode.y + toNode.height / 2) * zoom;
 
           return (
-            <line
-              key={conn.id}
-              x1={startX}
-              y1={startY}
-              x2={endX}
-              y2={endY}
-              stroke="var(--accent-hover)"
-              strokeWidth={2 * zoom}
-              strokeDasharray="4 4"
-            />
+            <g key={conn.id}>
+              <line
+                x1={startX}
+                y1={startY}
+                x2={endX}
+                y2={endY}
+                stroke="var(--accent-hover)"
+                strokeWidth={2 * zoom}
+                strokeDasharray="4 4"
+              />
+            </g>
           );
         })}
       </svg>
 
-      {/* Render Canvas Nodes */}
+      {/* Render AFFiNE Edgeless Canvas Nodes */}
       <div style={{ transform: `scale(${zoom})`, transformOrigin: '0 0', width: '100%', height: '100%' }}>
         {nodes.map(node => {
           const isSelected = node.id === selectedNodeId;
+          const isSticky = node.type === 'note';
           return (
             <div
               key={node.id}
@@ -145,12 +169,14 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
                 left: `${node.x}px`,
                 top: `${node.y}px`,
                 width: `${node.width}px`,
-                borderColor: isSelected ? 'var(--border-focus)' : node.color || 'var(--border-color)'
+                background: isSticky ? 'rgba(210, 153, 34, 0.15)' : 'var(--bg-secondary)',
+                borderColor: isSelected ? 'var(--border-focus)' : node.color || 'var(--border-color)',
+                boxShadow: isSticky ? '0 4px 16px rgba(210, 153, 34, 0.2)' : '0 8px 32px rgba(0,0,0,0.4)'
               }}
               onMouseDown={(e) => handleMouseDown(node, e)}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{node.title}</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: isSticky ? '#d29922' : 'var(--text-primary)' }}>{node.title}</span>
                 <button 
                   className="btn-icon" 
                   style={{ padding: '2px', color: 'var(--danger)' }} 
@@ -172,7 +198,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
                   height: '65px',
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--text-secondary)',
+                  color: isSticky ? '#f0f6fc' : 'var(--text-secondary)',
                   fontSize: '12px',
                   outline: 'none',
                   resize: 'none'

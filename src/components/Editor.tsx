@@ -49,6 +49,10 @@ export const Editor: React.FC<EditorProps> = ({
   const [isPreview, setIsPreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [showOutline, setShowOutline] = useState(false);
+
+  // WikiLink Autocomplete Popup state
+  const [wikiSearch, setWikiSearch] = useState<string | null>(null);
+  const [wikiPopupPos, setWikiPopupPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   
   // Modals
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -60,7 +64,6 @@ export const Editor: React.FC<EditorProps> = ({
   const [paragraphType, setParagraphType] = useState('paragraph');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const contentRef = useRef(content);
 
@@ -100,6 +103,19 @@ export const Editor: React.FC<EditorProps> = ({
     setContent(newContent);
     setSaveStatus('saving');
     
+    // Check WikiLink triggers [[
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const cursor = textarea.selectionStart;
+      const beforeCursor = newContent.substring(0, cursor);
+      const match = beforeCursor.match(/\[\[([^\]]*)$/);
+      if (match) {
+        setWikiSearch(match[1].toLowerCase());
+      } else {
+        setWikiSearch(null);
+      }
+    }
+
     const autoTags = extractTags(newContent).filter(t => !/^\s*#\s/.test(t));
     const combinedTags = Array.from(new Set([...(note.tags || []), ...autoTags]));
 
@@ -118,6 +134,20 @@ export const Editor: React.FC<EditorProps> = ({
       });
       setSaveStatus('saved');
     }, 300);
+  };
+
+  const insertWikiLink = (selectedTitle: string) => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const cursor = textarea.selectionStart;
+      const beforeCursor = content.substring(0, cursor);
+      const matchIndex = beforeCursor.lastIndexOf('[[');
+      if (matchIndex !== -1) {
+        const newText = content.substring(0, matchIndex) + `[[${selectedTitle}]]` + content.substring(cursor);
+        handleContentChange(newText);
+        setWikiSearch(null);
+      }
+    }
   };
 
   const handleTitleChange = (newTitle: string) => {
@@ -188,7 +218,6 @@ export const Editor: React.FC<EditorProps> = ({
   // Rich Markdown Renderer with Dataview query block support
   const renderMarkdown = (text: string) => {
     let rendered = text
-      // Strip dangerous HTML injection payloads without altering block quote or Dataview operators
       .replace(/<(script|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
       .replace(/\bon[a-z]+\s*=\s*"[^"]*"/gi, '')
       .replace(/\bon[a-z]+\s*=\s*'[^']*'/gi, '')
@@ -234,9 +263,13 @@ export const Editor: React.FC<EditorProps> = ({
     return { __html: rendered };
   };
 
+  const wikiSuggestions = wikiSearch !== null
+    ? allNotes.filter(n => n.title.toLowerCase().includes(wikiSearch))
+    : [];
+
   return (
     <div 
-      style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)' }}
+      style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-primary)', position: 'relative' }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
@@ -258,6 +291,24 @@ export const Editor: React.FC<EditorProps> = ({
         onExportPDF={() => exportNoteToPDF(note)}
         onExportHTML={() => exportNoteToHTML(note)}
       />
+
+      {/* WikiLink Autocomplete Popup */}
+      {wikiSearch !== null && wikiSuggestions.length > 0 && (
+        <div style={{ position: 'absolute', top: '120px', left: '160px', zIndex: 100, background: 'var(--bg-secondary)', border: '1px solid var(--border-focus)', borderRadius: '8px', width: '260px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)', padding: '6px 0' }}>
+          <div style={{ padding: '4px 12px', fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            Link Note ([[WikiLink]])
+          </div>
+          {wikiSuggestions.map(s => (
+            <div
+              key={s.id}
+              style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--text-primary)', cursor: 'pointer', transition: 'background 0.15s ease' }}
+              onMouseDown={() => insertWikiLink(s.title)}
+            >
+              [[ {s.title} ]]
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Editor Sub-Header Actions */}
       <div style={{ padding: '8px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-secondary)', fontSize: '12px' }}>
@@ -286,7 +337,6 @@ export const Editor: React.FC<EditorProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Encrypted Vault Button */}
           <button 
             className="btn-icon"
             onClick={() => onLockVaultNote(note)}
@@ -295,30 +345,25 @@ export const Editor: React.FC<EditorProps> = ({
             {note.isEncrypted ? <Lock size={16} color="var(--vault-purple)" /> : <Unlock size={16} />}
           </button>
 
-          {/* Mode Switch (Edit / Preview) */}
           <button className="btn" onClick={() => setIsPreview(!isPreview)} style={{ padding: '4px 10px', fontSize: '12px' }}>
             {isPreview ? <Edit3 size={14} /> : <Eye size={14} />}
             <span>{isPreview ? t('edit', lang) : t('preview', lang)}</span>
           </button>
 
-          {/* Delete Note */}
           <button className="btn-icon" onClick={() => { if(window.confirm('Are you sure you want to delete this note?')) { onDeleteNote(note.id); } }} title="Delete Note" style={{ color: 'var(--danger)' }}>
             <Trash2 size={16} />
           </button>
         </div>
       </div>
 
-      {/* Main Workspace Body (Editor + Optional Document Outline) */}
+      {/* Main Workspace Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Editor Main Canvas */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', maxWidth: '850px', margin: '0 auto', width: '100%' }}>
-          {/* Page Banner Header */}
           <PageBanner 
             banner={note.banner} 
             onUpdateBanner={(b) => onUpdateNote({ ...note, banner: b, updatedAt: Date.now() })} 
           />
 
-          {/* Note Title Input */}
           <input
             type="text"
             value={title}
@@ -337,7 +382,6 @@ export const Editor: React.FC<EditorProps> = ({
             }}
           />
 
-          {/* Inline "Add a tag..." Input */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
             {note.tags.map(tag => (
               <span key={tag} className="tag-badge" style={{ fontSize: '12px' }}>
@@ -368,7 +412,6 @@ export const Editor: React.FC<EditorProps> = ({
             />
           </div>
 
-          {/* Content Editor vs Live Preview */}
           {isPreview ? (
             <div 
               className="editor-preview note-content"
@@ -393,7 +436,6 @@ export const Editor: React.FC<EditorProps> = ({
             />
           )}
 
-          {/* Backlinks & Recommendations Panel */}
           <BacklinksPanel
             currentNote={note}
             allNotes={allNotes}
@@ -401,13 +443,11 @@ export const Editor: React.FC<EditorProps> = ({
           />
         </div>
 
-        {/* Collapsible Document Outline Panel (¶) */}
         {showOutline && (
           <DocumentOutline content={content} lang={lang} />
         )}
       </div>
 
-      {/* AI Assistant Modal */}
       <AICopilotModal
         isOpen={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
@@ -416,7 +456,6 @@ export const Editor: React.FC<EditorProps> = ({
         lang={lang}
       />
 
-      {/* Audio Note Recorder Modal */}
       <AudioRecorderModal
         isOpen={audioModalOpen}
         onClose={() => setAudioModalOpen(false)}
