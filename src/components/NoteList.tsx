@@ -95,6 +95,15 @@ export const NoteList: React.FC<NoteListProps> = ({
               <div
                 key={note.id}
                 onClick={() => onSelectNote(note.id)}
+                tabIndex={0}
+                role="button"
+                aria-label={`Select note: ${note.title || 'Untitled Note'}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectNote(note.id);
+                  }
+                }}
                 style={{
                   padding: '12px',
                   borderRadius: '8px',

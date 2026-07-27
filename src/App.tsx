@@ -63,7 +63,7 @@ $$
     tasks: [
       { id: 't1', title: 'Analyze emotional responses', completed: true, createdAt: Date.now() },
       { id: 't2', title: 'Implement rich text formatting', completed: true, createdAt: Date.now() },
-      { id: 't3', title: 'Create LaTeX formulas', completed: false, dueDate: new Date().toISOString().slice(0, 10), priority: 'P1', createdAt: Date.now() }
+      { id: 't3', title: 'Create LaTeX formulas', completed: false, dueDate: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(), priority: 'P1', createdAt: Date.now() }
     ]
   },
   {
@@ -96,12 +96,26 @@ export const App: React.FC = () => {
 
   const [notes, setNotes] = useState<Note[]>(() => {
     const saved = localStorage.getItem('kv_notes');
-    return saved ? JSON.parse(saved) : INITIAL_NOTES;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return INITIAL_NOTES;
+      }
+    }
+    return INITIAL_NOTES;
   });
 
   const [folders, setFolders] = useState<Folder[]>(() => {
     const saved = localStorage.getItem('kv_folders');
-    return saved ? JSON.parse(saved) : INITIAL_FOLDERS;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return INITIAL_FOLDERS;
+      }
+    }
+    return INITIAL_FOLDERS;
   });
 
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(INITIAL_NOTES[0].id);
@@ -165,7 +179,7 @@ export const App: React.FC = () => {
     const processedContent = processTemplate(defaultTemplate, 'Untitled Note', notes);
 
     const newNote: Note = {
-      id: `note-${Date.now()}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       title: 'Untitled Note',
       content: processedContent,
       folder: selectedFolder || '',
@@ -244,7 +258,7 @@ export const App: React.FC = () => {
       setViewMode('notes');
     } else {
       const newNote: Note = {
-        id: `note-${Date.now()}`,
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `note-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         title: title,
         content: `# ${title}\n\nLinked from WikiLink.`,
         folder: '',

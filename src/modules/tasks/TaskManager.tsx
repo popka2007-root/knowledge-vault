@@ -31,10 +31,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ notes, onUpdateNote, l
   // Extract all tasks across all notes + standalone tasks
   const allTasks: TaskItem[] = notes.flatMap(n => n.tasks || []);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const getLocalDateStr = (d: Date) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const todayStr = getLocalDateStr(new Date());
   const tomorrow = new Date();
-  tomorrow.setDate(new Date().getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = getLocalDateStr(tomorrow);
 
   // Statistics & Streak calculation
   const completedCount = allTasks.filter(t => t.completed).length;

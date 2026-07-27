@@ -302,7 +302,7 @@ export const Editor: React.FC<EditorProps> = ({
           </button>
 
           {/* Delete Note */}
-          <button className="btn-icon" onClick={() => onDeleteNote(note.id)} title="Delete Note" style={{ color: 'var(--danger)' }}>
+          <button className="btn-icon" onClick={() => { if(window.confirm('Are you sure you want to delete this note?')) { onDeleteNote(note.id); } }} title="Delete Note" style={{ color: 'var(--danger)' }}>
             <Trash2 size={16} />
           </button>
         </div>
@@ -371,6 +371,7 @@ export const Editor: React.FC<EditorProps> = ({
           {/* Content Editor vs Live Preview */}
           {isPreview ? (
             <div 
+              className="editor-preview note-content"
               style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily, lineHeight: 1.7, color: 'var(--text-primary)' }}
               dangerouslySetInnerHTML={renderMarkdown(content)}
               onClick={(e) => {
