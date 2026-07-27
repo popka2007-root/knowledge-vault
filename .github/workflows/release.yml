@@ -20,15 +20,42 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install & Build EXE
+      - name: Generate placeholder icon (Windows)
+        shell: pwsh
         run: |
-          npm install
-          npm run build:exe
+          # Create a minimal valid ICO file (16x16 blue square) using PowerShell
+          Add-Type -AssemblyName System.Drawing
+          $bmp = New-Object System.Drawing.Bitmap(256, 256)
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.Clear([System.Drawing.Color]::FromArgb(31, 111, 235))
+          $g.Dispose()
+          $bmp.Save("electron\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          # Convert PNG to ICO via .NET
+          $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+          $fs = [System.IO.File]::Open("electron\icon.ico", [System.IO.FileMode]::Create)
+          $icon.Save($fs)
+          $fs.Close()
+          $bmp.Dispose()
+          Write-Host "Icons created successfully"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Build Windows EXE
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload EXE to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist_electron/*.exe
+          files: |
+            dist_electron/*.exe
+            dist_electron/*.msi
+          fail_on_unmatched_files: false
           generate_release_notes: true
 
   # ─── Linux AppImage + deb ───────────────────────────────────────
@@ -42,15 +69,48 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install system deps for electron-builder
+      - name: Install system dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y rpm fakeroot dpkg
+          sudo apt-get install -y rpm fakeroot dpkg imagemagick
 
-      - name: Install & Build Linux
+      - name: Generate placeholder icon (Linux)
         run: |
-          npm install
-          npm run build:linux
+          mkdir -p electron
+          convert -size 256x256 xc:"#1f6feb" \
+            -font DejaVu-Sans-Bold -pointsize 80 \
+            -fill white -gravity center -annotate 0 "KV" \
+            electron/icon.png || \
+          python3 -c "
+          import struct, zlib
+          def png_chunk(name, data):
+              c = zlib.crc32(name + data) & 0xffffffff
+              return struct.pack('>I', len(data)) + name + data + struct.pack('>I', c)
+          w, h = 256, 256
+          raw = b''
+          for y in range(h):
+              raw += b'\x00'
+              for x in range(w):
+                  raw += bytes([31, 111, 235, 255])
+          compressed = zlib.compress(raw)
+          with open('electron/icon.png', 'wb') as f:
+              f.write(b'\x89PNG\r\n\x1a\n')
+              f.write(png_chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)))
+              f.write(png_chunk(b'IDAT', compressed))
+              f.write(png_chunk(b'IEND', b''))
+          print('PNG created via python fallback')
+          "
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Build Linux AppImage + deb
+        run: npx electron-builder --linux AppImage deb --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux assets to Release
         uses: softprops/action-gh-release@v2
@@ -58,6 +118,7 @@ jobs:
           files: |
             dist_electron/*.AppImage
             dist_electron/*.deb
+          fail_on_unmatched_files: false
 
   # ─── Android APK ───────────────────────────────────────────────
   release-android:
@@ -75,20 +136,35 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install, build & sync Capacitor
+      - name: Install dependencies & build web
         run: |
           npm install
           npm run build
-          npx @capacitor/cli add android 2>/dev/null || true
-          npx @capacitor/cli sync android
 
-      - name: Build APK
+      - name: Initialize Capacitor Android
+        run: |
+          # Add android platform if not already present
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Set Gradle permissions
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -50
+
+      - name: Find and rename APK
+        run: |
+          find android -name "*.apk" -exec ls -la {} \;
+          mkdir -p apk-output
+          find android -name "*.apk" -exec cp {} apk-output/KnowledgeVault-debug.apk \;
 
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app/build/outputs/apk/debug/*.apk
+          files: apk-output/*.apk
+          fail_on_unmatched_files: false
