@@ -20,6 +20,7 @@ import { exportNoteToPDF, exportNoteToHTML } from '../utils/export';
 import { PageBanner } from '../modules/banners/PageBanner';
 import { BacklinksPanel } from '../modules/links/BacklinksPanel';
 import { executeDataviewQuery } from '../modules/dataview/queryEngine';
+import { BlockEditor } from './BlockEditor';
 
 const escapeHtml = (str: string) => {
   return str
@@ -38,6 +39,7 @@ interface EditorProps {
   allNotes: Note[];
   onSelectNoteByTitle: (title: string) => void;
   onLockVaultNote: (note: Note) => void;
+  onOpenHistory?: () => void;
   lang: Language;
 }
 
@@ -49,6 +51,7 @@ export const Editor: React.FC<EditorProps> = ({
   allNotes,
   onSelectNoteByTitle,
   onLockVaultNote,
+  onOpenHistory,
   lang
 }) => {
   const [title, setTitle] = useState('');
@@ -58,6 +61,7 @@ export const Editor: React.FC<EditorProps> = ({
   const [isPreview, setIsPreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [showOutline, setShowOutline] = useState(false);
+  const [useBlockEditor, setUseBlockEditor] = useState(!!note?.blocks?.length);
 
   // WikiLink Autocomplete Popup state
   const [wikiSearch, setWikiSearch] = useState<string | null>(null);
@@ -133,13 +137,31 @@ export const Editor: React.FC<EditorProps> = ({
     }
 
     timeoutIdRef.current = setTimeout(() => {
+      const currentHistory = note.history || [];
+      const lastSnap = currentHistory[currentHistory.length - 1];
+      let newHistory = currentHistory;
+
+      // Save a new snapshot if history is empty or content changed significantly
+      if (!lastSnap || Math.abs(lastSnap.content.length - newContent.length) > 10 || (Date.now() - lastSnap.timestamp > 60000 && lastSnap.content !== newContent)) {
+        newHistory = [
+          ...currentHistory,
+          {
+            id: `snap-${Date.now()}`,
+            timestamp: Date.now(),
+            title: title || note.title,
+            content: newContent
+          }
+        ].slice(-20); // Keep last 20 snapshots
+      }
+
       onUpdateNote({
         ...note,
         title,
         content: newContent,
         folder: folderId,
         tags: combinedTags,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        history: newHistory
       });
       setSaveStatus('saved');
     }, 300);
@@ -230,20 +252,45 @@ export const Editor: React.FC<EditorProps> = ({
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;')
-      // Dataview Query Codeblocks ```dataview ... ```
-      .replace(/```dataview\n([\s\S]*?)```/g, (_, queryStr) => {
-        const queryRes = executeDataviewQuery(queryStr, allNotes, note.tasks || []);
-        const rowsHtml = queryRes.rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('');
-        const headersHtml = queryRes.headers ? `<thead><tr style="background:var(--bg-tertiary);">${queryRes.headers.map(h => `<th style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(h))}</th>`).join('')}</tr></thead>` : '';
-        return `<div style="margin:14px 0; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"><div style="background:var(--bg-secondary); padding:8px 12px; font-size:12px; font-weight:600; color:var(--accent-hover);">📊 Dataview Query Result (${queryRes.totalCount} items)</div><table style="width:100%; border-collapse:collapse; font-size:12.5px;">${headersHtml}<tbody>${rowsHtml}</tbody></table></div>`;
-      })
-      // LaTeX Math Block $$ ... $$
-      .replace(/\$\$\n?([\s\S]*?)\n?\$\$/g, '<div style="background:var(--bg-tertiary); padding:12px; border-radius:6px; font-family:var(--font-mono); color:var(--vault-purple); margin:12px 0; text-align:center; border:1px solid var(--border-color); font-size:16px;"><strong>$1</strong></div>')
-      // Inline Math $ ... $
-      .replace(/\$(?!\s)([^$]+?)(?<!\s)\$/g, '<code style="background:rgba(163,113,247,0.2); color:var(--vault-purple); padding:2px 6px; border-radius:4px;">$1</code>')
-      // Codeblocks ``` ... ```
-      .replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre style="background:#090d13; padding:14px; border-radius:8px; font-family:var(--font-mono); font-size:13px; color:#e6edf3; overflow-x:auto; margin:14px 0; border:1px solid var(--border-color);"><code>$2</code></pre>')
+      .replace(/'/g, '&#039;');
+
+    const placeholders: string[] = [];
+    
+    // Dataview Query Codeblocks ```dataview ... ```
+    rendered = rendered.replace(/```dataview\n([\s\S]*?)```/g, (_, queryStr) => {
+      const unescapedQuery = queryStr
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'");
+      
+      const queryRes = executeDataviewQuery(unescapedQuery, allNotes, note.tasks || []);
+      const rowsHtml = queryRes.rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('');
+      const headersHtml = queryRes.headers ? `<thead><tr style="background:var(--bg-tertiary);">${queryRes.headers.map(h => `<th style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(h))}</th>`).join('')}</tr></thead>` : '';
+      placeholders.push(`<div style="margin:14px 0; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"><div style="background:var(--bg-secondary); padding:8px 12px; font-size:12px; font-weight:600; color:var(--accent-hover);">📊 Dataview Query Result (${queryRes.totalCount} items)</div><table style="width:100%; border-collapse:collapse; font-size:12.5px;">${headersHtml}<tbody>${rowsHtml}</tbody></table></div>`);
+      return `___BLOCK_${placeholders.length - 1}___`;
+    });
+    
+    // Codeblocks ``` ... ```
+    rendered = rendered.replace(/```([a-z]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+      placeholders.push(`<pre style="background:#090d13; padding:14px; border-radius:8px; font-family:var(--font-mono); font-size:13px; color:#e6edf3; overflow-x:auto; margin:14px 0; border:1px solid var(--border-color);"><code>${code}</code></pre>`);
+      return `___BLOCK_${placeholders.length - 1}___`;
+    });
+    
+    // LaTeX Math Block $$ ... $$
+    rendered = rendered.replace(/\$\$\n?([\s\S]*?)\n?\$\$/g, (_, math) => {
+      placeholders.push(`<div style="background:var(--bg-tertiary); padding:12px; border-radius:6px; font-family:var(--font-mono); color:var(--vault-purple); margin:12px 0; text-align:center; border:1px solid var(--border-color); font-size:16px;"><strong>${math}</strong></div>`);
+      return `___BLOCK_${placeholders.length - 1}___`;
+    });
+    
+    // Inline Math $ ... $
+    rendered = rendered.replace(/\$(?!\s)([^$]+?)(?<!\s)\$/g, (_, math) => {
+      placeholders.push(`<code style="background:rgba(163,113,247,0.2); color:var(--vault-purple); padding:2px 6px; border-radius:4px;">${math}</code>`);
+      return `___BLOCK_${placeholders.length - 1}___`;
+    });
+
+    rendered = rendered
       // Task Lists (- [ ] or - [x])
       .replace(/^- \[ \] (.*$)/gim, '<div style="display:flex; align-items:center; gap:8px; margin:4px 0;"><input type="checkbox" disabled style="accent-color:var(--accent-primary); cursor:pointer;" /> <span>$1</span></div>')
       .replace(/^- \[x\] (.*$)/gim, '<div style="display:flex; align-items:center; gap:8px; margin:4px 0; text-decoration:line-through; opacity:0.6;"><input type="checkbox" checked disabled /> <span>$1</span></div>')
@@ -265,6 +312,10 @@ export const Editor: React.FC<EditorProps> = ({
       .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width:100%; border-radius:8px; margin:12px 0; box-shadow:0 4px 16px rgba(0,0,0,0.3);" />')
       .replace(/\[\[(.*?)\]\]/g, '<span class="wikilink" data-link="$1">[[ $1 ]]</span>')
       .replace(/\n/g, '<br/>');
+
+    placeholders.forEach((ph, i) => {
+      rendered = rendered.replace(`___BLOCK_${i}___`, ph);
+    });
 
     return { __html: rendered };
   };
@@ -296,6 +347,7 @@ export const Editor: React.FC<EditorProps> = ({
         onOpenAudioRecorder={() => setAudioModalOpen(true)}
         onExportPDF={() => exportNoteToPDF(note)}
         onExportHTML={() => exportNoteToHTML(note)}
+        onOpenHistory={onOpenHistory}
       />
 
       {/* WikiLink Autocomplete Popup */}
@@ -354,6 +406,10 @@ export const Editor: React.FC<EditorProps> = ({
           <button className="btn" onClick={() => setIsPreview(!isPreview)} style={{ padding: '4px 10px', fontSize: '12px' }}>
             {isPreview ? <Edit3 size={14} /> : <Eye size={14} />}
             <span>{isPreview ? t('edit', lang) : t('preview', lang)}</span>
+          </button>
+          
+          <button className="btn" onClick={() => setUseBlockEditor(!useBlockEditor)} style={{ padding: '4px 10px', fontSize: '12px' }}>
+            <span>{useBlockEditor ? 'Markdown Mode' : 'Block Mode'}</span>
           </button>
 
           <button className="btn-icon" onClick={() => { if(window.confirm('Are you sure you want to delete this note?')) { onDeleteNote(note.id); } }} title="Delete Note" style={{ color: 'var(--danger)' }}>
@@ -419,7 +475,27 @@ export const Editor: React.FC<EditorProps> = ({
             />
           </div>
 
-          {isPreview ? (
+          {useBlockEditor ? (
+            <BlockEditor
+              note={note}
+              onChange={(md, newBlocks) => {
+                setContent(md);
+                setSaveStatus('saving');
+                if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
+                timeoutIdRef.current = setTimeout(() => {
+                  onUpdateNote({
+                    ...note,
+                    title,
+                    content: md,
+                    blocks: newBlocks,
+                    folder: folderId,
+                    updatedAt: Date.now()
+                  });
+                  setSaveStatus('saved');
+                }, 300);
+              }}
+            />
+          ) : isPreview ? (
             <div 
               className="editor-preview note-content"
               style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily, lineHeight: 1.7, color: 'var(--text-primary)' }}

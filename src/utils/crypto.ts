@@ -6,10 +6,14 @@ import CryptoJS from 'crypto-js';
 export function encryptNoteContent(plainText: string, masterPassword: string): string {
   try {
     const salt = CryptoJS.lib.WordArray.random(128 / 8);
-    const key = CryptoJS.PBKDF2(masterPassword, salt, { keySize: 256 / 32, iterations: 100000 });
+    const key = CryptoJS.PBKDF2(masterPassword, salt, { 
+      keySize: 256 / 32, 
+      iterations: 600000,
+      hasher: CryptoJS.algo.SHA256
+    });
     const iv = CryptoJS.lib.WordArray.random(128 / 8);
     const encrypted = CryptoJS.AES.encrypt(plainText, key, { iv: iv });
-    return salt.toString() + ':' + iv.toString() + ':' + encrypted.toString();
+    return 'v2:' + salt.toString() + ':' + iv.toString() + ':' + encrypted.toString();
   } catch (error) {
     console.error('Encryption failed:', error);
     throw new Error('Failed to encrypt note content.');
@@ -22,7 +26,24 @@ export function encryptNoteContent(plainText: string, masterPassword: string): s
 export function decryptNoteContent(encryptedText: string, masterPassword: string): string {
   try {
     const parts = encryptedText.split(':');
-    if (parts.length === 3) {
+    
+    if (parts.length === 4 && parts[0] === 'v2') {
+      const salt = CryptoJS.enc.Hex.parse(parts[1]);
+      const iv = CryptoJS.enc.Hex.parse(parts[2]);
+      const ciphertext = parts[3];
+      const key = CryptoJS.PBKDF2(masterPassword, salt, { 
+        keySize: 256 / 32, 
+        iterations: 600000,
+        hasher: CryptoJS.algo.SHA256
+      });
+      const bytes = CryptoJS.AES.decrypt(ciphertext, key, { iv: iv });
+      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+      if (decrypted === '' && bytes.sigBytes <= 0) {
+        throw new Error('Invalid password');
+      }
+      return decrypted;
+    } else if (parts.length === 3) {
+      // Legacy v1 format
       const salt = CryptoJS.enc.Hex.parse(parts[0]);
       const iv = CryptoJS.enc.Hex.parse(parts[1]);
       const ciphertext = parts[2];
@@ -67,7 +88,8 @@ export function extractWikiLinks(markdownContent: string): string[] {
  * Extract #tags from markdown content
  */
 export function extractTags(markdownContent: string): string[] {
-  const tagRegex = /(?:^|\s)#([\p{L}\p{N}_\-]+)/gu;
+  // Negative lookahead prevents matching tags that only consist of numbers or underscores/hyphens
+  const tagRegex = /(?:^|\s)#(?!\d+(?:\s|$)|[-_]+(?:\s|$))([\p{L}\p{N}_\-]+)/gu;
   const tags: string[] = [];
   let match;
   while ((match = tagRegex.exec(markdownContent)) !== null) {

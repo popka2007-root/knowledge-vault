@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { 
   FileText, FolderPlus, Tag, Shield, 
   Sun, Moon, RefreshCw, Layers, GitFork, Command, Globe, 
-  LayoutDashboard, Calendar, CheckSquare, Upload, Download
+  LayoutDashboard, Calendar, CheckSquare, Upload, Download, Trash2
 } from 'lucide-react';
 import { Folder, ViewMode, Theme, SyncState, Note } from '../types';
 import { Language, t } from '../utils/i18n';
@@ -179,7 +179,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => setViewMode('graph')}
         >
           <GitFork size={16} />
-          <span>{t('graphView', lang)}</span>
+          <span>{t('knowledgeGraph', lang)}</span>
+        </button>
+
+        <button
+          className={`btn ${viewMode === 'trash' ? 'btn-primary' : ''}`}
+          style={{ justifyContent: 'flex-start', width: '100%', color: viewMode === 'trash' ? '#fff' : 'var(--danger)' }}
+          onClick={() => setViewMode('trash')}
+        >
+          <Trash2 size={16} />
+          <span>{lang === 'ru' ? 'Корзина' : 'Trash Bin'}</span>
         </button>
       </div>
 

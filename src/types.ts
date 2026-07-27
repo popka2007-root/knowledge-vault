@@ -1,4 +1,4 @@
-export type ViewMode = 'notes' | 'canvas' | 'graph' | 'dashboard' | 'calendar' | 'tasks';
+export type ViewMode = 'notes' | 'canvas' | 'graph' | 'dashboard' | 'calendar' | 'tasks' | 'trash';
 export type Theme = 'dark' | 'light';
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
 
@@ -32,10 +32,27 @@ export interface TaskItem {
   completedAt?: number;
 }
 
+export interface Block {
+  id: string;
+  type: string; // e.g., 'paragraph', 'heading', 'image', 'code', etc.
+  content: string;
+  children?: string[]; // Array of Block IDs for nesting
+  properties?: Record<string, any>; // Optional properties for block-specific data (e.g., heading level, image url)
+  checked?: boolean; // For task blocks
+}
+
+export interface NoteSnapshot {
+  id: string;
+  timestamp: number;
+  title: string;
+  content: string;
+}
+
 export interface Note {
   id: string;
   title: string;
-  content: string;
+  content: string; // Legacy markdown content
+  blocks?: Block[]; // New block-based structure
   folder: string;
   tags: string[];
   isEncrypted: boolean;
@@ -47,6 +64,9 @@ export interface Note {
   banner?: PageBanner;
   tasks?: TaskItem[];
   properties?: Record<string, any>;
+  isDeleted?: boolean;
+  deletedAt?: number;
+  history?: NoteSnapshot[];
 }
 
 export interface Folder {

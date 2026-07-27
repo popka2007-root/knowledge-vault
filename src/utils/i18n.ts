@@ -79,7 +79,42 @@ export const translations: Record<Language, Record<string, string>> = {
     // Backlinks
     backlinks: 'Обратные ссылки (Backlinks)',
     noBacklinks: 'Нет обратных ссылок',
-    relatedNotes: 'Рекомендуемые заметки'
+    relatedNotes: 'Рекомендуемые заметки',
+
+    // Tooltips
+    insertElement: 'Вставить элемент',
+    aiCopilot: 'ИИ-помощник Copilot',
+    recordVoiceNote: 'Запись голосовой заметки',
+    bold: 'Жирный (Ctrl+B)',
+    italic: 'Курсив (Ctrl+I)',
+    underline: 'Подчёркнутый (Ctrl+U)',
+    strikethrough: 'Зачёркнутый',
+    textHighlight: 'Цвет выделения',
+    highlightPurple: 'Пурпурное выделение',
+    highlightYellow: 'Жёлтое выделение',
+    highlightGreen: 'Зелёное выделение',
+    highlightBlue: 'Синее выделение',
+    bulletList: 'Маркированный список',
+    numberedList: 'Нумерованный список',
+    taskCheckboxList: 'Список задач с чекбоксами',
+    insertWikiLink: 'Вставить Wiki-ссылку [[Заметка]]',
+    exportPDF: 'Печать / Экспорт в PDF',
+    exportHTML: 'Экспорт в HTML',
+    versionHistory: 'История версий заметки',
+    toggleMoreTools: 'Показать больше инструментов',
+
+    // Trash & History
+    trashBinTitle: 'Корзина удалённых заметок',
+    trashBinDesc: 'Удалённые заметки хранятся здесь. Вы можете восстановить их в любое время.',
+    emptyTrashBtn: 'Очистить корзину',
+    trashEmptyStateTitle: 'Корзина пуста',
+    trashEmptyStateDesc: 'Удалённые заметки появятся в этом разделе.',
+    untitled: 'Без названия',
+    restore: 'Восстановить',
+    noteVersionHistoryTitle: 'История версий заметки',
+    reviewingSnapshotsFor: 'Просмотр сохранённых ревизий заметки',
+    noSnapshotsAvailable: 'Предыдущие снимки версий пока отсутствуют.',
+    restoreVersion: 'Восстановить версию'
   },
   en: {
     appTitle: 'Knowledge Vault',
@@ -155,7 +190,42 @@ export const translations: Record<Language, Record<string, string>> = {
 
     backlinks: 'Backlinks',
     noBacklinks: 'No backlinks found',
-    relatedNotes: 'Related Recommendations'
+    relatedNotes: 'Related Recommendations',
+
+    // Tooltips
+    insertElement: 'Insert Element',
+    aiCopilot: 'AI Copilot Assistant',
+    recordVoiceNote: 'Record Voice Note',
+    bold: 'Bold (Ctrl+B)',
+    italic: 'Italic (Ctrl+I)',
+    underline: 'Underline (Ctrl+U)',
+    strikethrough: 'Strikethrough',
+    textHighlight: 'Text Highlight Color',
+    highlightPurple: 'Purple Highlight',
+    highlightYellow: 'Yellow Highlight',
+    highlightGreen: 'Green Highlight',
+    highlightBlue: 'Blue Highlight',
+    bulletList: 'Bullet List',
+    numberedList: 'Numbered List',
+    taskCheckboxList: 'Task Checkbox List',
+    insertWikiLink: 'Insert WikiLink [[Note]]',
+    exportPDF: 'Print / Export to PDF',
+    exportHTML: 'Export to Standalone HTML',
+    versionHistory: 'Note Version History Snapshots',
+    toggleMoreTools: 'Toggle More Tools',
+
+    // Trash & History
+    trashBinTitle: 'Trash Bin',
+    trashBinDesc: 'Deleted notes are safely stored here. You can restore them anytime.',
+    emptyTrashBtn: 'Empty Trash',
+    trashEmptyStateTitle: 'Trash Bin is Empty',
+    trashEmptyStateDesc: 'Deleted notes will appear here.',
+    untitled: 'Untitled',
+    restore: 'Restore',
+    noteVersionHistoryTitle: 'Note Version History',
+    reviewingSnapshotsFor: 'Reviewing saved snapshots for',
+    noSnapshotsAvailable: 'No version snapshots available yet.',
+    restoreVersion: 'Restore Version'
   },
   de: {
     appTitle: 'Knowledge Vault',

@@ -25,7 +25,8 @@ import {
   Sparkles,
   Mic,
   Printer,
-  Download
+  Download,
+  History
 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
 
@@ -45,6 +46,7 @@ interface EditorToolbarProps {
   onOpenAudioRecorder: () => void;
   onExportPDF: () => void;
   onExportHTML: () => void;
+  onOpenHistory?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -62,10 +64,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenAICopilot,
   onOpenAudioRecorder,
   onExportPDF,
-  onExportHTML
+  onExportHTML,
+  onOpenHistory
 }) => {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleParagraphChange = (type: string) => {
     setParagraphType(type);
@@ -94,7 +98,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className="btn-icon" 
           onClick={() => setShowPlusMenu(!showPlusMenu)}
           style={{ color: '#2f81f7', fontWeight: 'bold' }}
-          title="Insert Element"
+          title={t('insertElement', lang)}
         >
           <Plus size={18} />
         </button>
@@ -161,37 +165,37 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         )}
       </div>
 
-      <span style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
+      <span className="toolbar-divider" style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
 
       {/* AI Assistant Button */}
-      <button className="btn-icon" onClick={onOpenAICopilot} title="AI Copilot Assistant" style={{ color: '#a371f7' }}>
+      <button className="btn-icon" onClick={onOpenAICopilot} title={t('aiCopilot', lang)} style={{ color: '#a371f7' }}>
         <Sparkles size={16} />
       </button>
 
       {/* Audio Recorder Button */}
-      <button className="btn-icon" onClick={onOpenAudioRecorder} title="Record Voice Note" style={{ color: '#f85149' }}>
+      <button className="btn-icon" onClick={onOpenAudioRecorder} title={t('recordVoiceNote', lang)} style={{ color: '#f85149' }}>
         <Mic size={16} />
       </button>
 
-      <span style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
+      <span className="toolbar-divider" style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
 
       {/* Basic Formatting Buttons: B, I, U, S */}
-      <button className="btn-icon" onClick={() => onInsertText('**', '**')} title="Bold (Ctrl+B)">
+      <button className="btn-icon" onClick={() => onInsertText('**', '**')} title={t('bold', lang)}>
         <Bold size={16} />
       </button>
-      <button className="btn-icon" onClick={() => onInsertText('*', '*')} title="Italic (Ctrl+I)">
+      <button className="btn-icon" onClick={() => onInsertText('*', '*')} title={t('italic', lang)}>
         <Italic size={16} />
       </button>
-      <button className="btn-icon" onClick={() => onInsertText('<u>', '</u>')} title="Underline (Ctrl+U)">
+      <button className="btn-icon" onClick={() => onInsertText('<u>', '</u>')} title={t('underline', lang)}>
         <UnderlineIcon size={16} />
       </button>
-      <button className="btn-icon" onClick={() => onInsertText('~~', '~~')} title="Strikethrough">
+      <button className="btn-icon" onClick={() => onInsertText('~~', '~~')} title={t('strikethrough', lang)}>
         <Strikethrough size={16} />
       </button>
 
       {/* More Formatting Dropdown (Highlight Colors) */}
       <div style={{ position: 'relative' }}>
-        <button className="btn-icon" onClick={() => setShowHighlightMenu(!showHighlightMenu)} title="Text Highlight Color">
+        <button className="btn-icon" onClick={() => setShowHighlightMenu(!showHighlightMenu)} title={t('textHighlight', lang)}>
           <Palette size={16} color="#a371f7" />
         </button>
 
@@ -209,18 +213,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             display: 'flex',
             gap: '6px'
           }}>
-            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(163,113,247,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(163,113,247,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title="Purple Highlight" />
-            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(227,179,65,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(227,179,65,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title="Yellow Highlight" />
-            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(46,160,67,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(46,160,67,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title="Green Highlight" />
-            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(56,139,253,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(56,139,253,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title="Blue Highlight" />
+            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(163,113,247,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(163,113,247,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title={t('highlightPurple', lang)} />
+            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(227,179,65,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(227,179,65,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title={t('highlightYellow', lang)} />
+            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(46,160,67,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(46,160,67,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title={t('highlightGreen', lang)} />
+            <button style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(56,139,253,0.5)', border: 'none', cursor: 'pointer' }} onClick={() => { onInsertText('<mark style="background:rgba(56,139,253,0.4); color:#fff; padding:2px 4px; border-radius:3px;">', '</mark>'); setShowHighlightMenu(false); }} title={t('highlightBlue', lang)} />
           </div>
         )}
       </div>
 
-      <span style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
+      <span className="toolbar-divider" style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
 
-      {/* Font Size Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+      {/* Font Size Controls - Hidden on small screens unless expanded */}
+      <div className={isExpanded ? '' : 'hide-on-mobile'} style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--bg-primary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
         <button className="btn-icon" style={{ padding: '1px' }} onClick={() => setFontSize(Math.max(12, fontSize - 1))}>
           <Minus size={12} />
         </button>
@@ -230,10 +234,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </button>
       </div>
 
-      <span style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
+      <span className={isExpanded ? 'toolbar-divider' : 'hide-on-mobile'} style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
 
       {/* Paragraph Dropdown */}
       <select
+        className={isExpanded ? '' : 'hide-on-mobile'}
         value={paragraphType}
         onChange={(e) => handleParagraphChange(e.target.value)}
         style={{
@@ -256,6 +261,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       {/* Font Family Dropdown */}
       <select
+        className={isExpanded ? '' : 'hide-on-mobile'}
         value={fontFamily}
         onChange={(e) => setFontFamily(e.target.value)}
         style={{
@@ -274,33 +280,40 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <option value="var(--font-mono)">{t('monospace', lang)}</option>
       </select>
 
-      <span style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
+      <span className={isExpanded ? 'toolbar-divider' : 'hide-on-mobile'} style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
 
       {/* List Controls */}
-      <button className="btn-icon" onClick={() => onInsertText('\n- ')} title="Bullet List">
-        <List size={16} />
-      </button>
-      <button className="btn-icon" onClick={() => onInsertText('\n1. ')} title="Numbered List">
-        <ListOrdered size={16} />
-      </button>
-      <button className="btn-icon" onClick={() => onInsertText('\n- [ ] ')} title="Task Checkbox List">
-        <CheckSquare size={16} />
-      </button>
+      <div className={isExpanded ? '' : 'hide-on-mobile'} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <button className="btn-icon" onClick={() => onInsertText('\n- ')} title={t('bulletList', lang)}>
+          <List size={16} />
+        </button>
+        <button className="btn-icon" onClick={() => onInsertText('\n1. ')} title={t('numberedList', lang)}>
+          <ListOrdered size={16} />
+        </button>
+        <button className="btn-icon" onClick={() => onInsertText('\n- [ ] ')} title={t('taskCheckboxList', lang)}>
+          <CheckSquare size={16} />
+        </button>
+      </div>
 
       {/* WikiLink */}
-      <button className="btn-icon" onClick={() => onInsertText('[[', ']]')} title="Insert WikiLink [[Note]]">
+      <button className="btn-icon" onClick={() => onInsertText('[[', ']]')} title={t('insertWikiLink', lang)}>
         <Link size={16} color="#388bfd" />
       </button>
 
-      <span style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
+      <span className="toolbar-divider" style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 2px' }} />
 
-      {/* PDF / HTML Export Buttons */}
-      <button className="btn-icon" onClick={onExportPDF} title="Print / Export to PDF">
+      {/* PDF / HTML Export & Version History Buttons */}
+      <button className="btn-icon" onClick={onExportPDF} title={t('exportPDF', lang)}>
         <Printer size={16} />
       </button>
-      <button className="btn-icon" onClick={onExportHTML} title="Export to Standalone HTML">
+      <button className="btn-icon" onClick={onExportHTML} title={t('exportHTML', lang)}>
         <Download size={16} />
       </button>
+      {onOpenHistory && (
+        <button className="btn-icon" onClick={onOpenHistory} title={t('versionHistory', lang)}>
+          <History size={16} color="var(--accent-hover)" />
+        </button>
+      )}
 
       {/* Outline Map Toggle */}
       <button 
@@ -311,6 +324,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       >
         <Pilcrow size={16} />
       </button>
+
+      {/* Mobile Expand Toggle */}
+      <button 
+        className="btn-icon mobile-only" 
+        onClick={() => setIsExpanded(!isExpanded)} 
+        title={t('toggleMoreTools', lang)}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        @media (max-width: 768px) {
+          .hide-on-mobile { display: none !important; }
+          .mobile-only { display: inline-flex !important; }
+        }
+        @media (min-width: 769px) {
+          .mobile-only { display: none !important; }
+        }
+      `}} />
     </div>
   );
 };

@@ -21,10 +21,11 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
 
-  // Global mousemove & mouseup listeners for smooth 60fps canvas dragging
+  // Global mousemove & mouseup listeners for smooth 60fps canvas dragging and resizing
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (draggingNodeId) {
@@ -38,14 +39,26 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
           }
           return n;
         }));
+      } else if (resizingNodeId) {
+        setNodes(prevNodes => prevNodes.map(n => {
+          if (n.id === resizingNodeId) {
+            return {
+              ...n,
+              width: Math.max(100, (e.clientX - dragOffset.x - n.x * zoom) / zoom),
+              height: Math.max(60, (e.clientY - dragOffset.y - n.y * zoom) / zoom)
+            };
+          }
+          return n;
+        }));
       }
     };
 
     const handleGlobalMouseUp = () => {
       setDraggingNodeId(null);
+      setResizingNodeId(null);
     };
 
-    if (draggingNodeId) {
+    if (draggingNodeId || resizingNodeId) {
       window.addEventListener('mousemove', handleGlobalMouseMove);
       window.addEventListener('mouseup', handleGlobalMouseUp);
     }
@@ -54,7 +67,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [draggingNodeId, dragOffset, zoom]);
+  }, [draggingNodeId, resizingNodeId, dragOffset, zoom]);
 
   const handleAddCardNode = () => {
     const newNode: CanvasNode = {
@@ -95,11 +108,25 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
   };
 
   const handleMouseDown = (node: CanvasNode, e: React.MouseEvent) => {
+    // Only drag if not clicking the resize handle or textarea
+    if ((e.target as HTMLElement).tagName.toLowerCase() === 'textarea') return;
+    if ((e.target as HTMLElement).classList.contains('resize-handle')) return;
+
     setSelectedNodeId(node.id);
     setDraggingNodeId(node.id);
     setDragOffset({
       x: e.clientX - node.x * zoom,
       y: e.clientY - node.y * zoom
+    });
+  };
+
+  const handleResizeMouseDown = (node: CanvasNode, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedNodeId(node.id);
+    setResizingNodeId(node.id);
+    setDragOffset({
+      x: e.clientX - (node.x + node.width) * zoom,
+      y: e.clientY - (node.y + node.height) * zoom
     });
   };
 
@@ -140,13 +167,15 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
           const endX = (toNode.x + toNode.width / 2) * zoom;
           const endY = (toNode.y + toNode.height / 2) * zoom;
 
+          // Calculate distance for control point curvature
+          const distX = Math.abs(endX - startX) * 0.5;
+          const pathData = `M ${startX},${startY} C ${startX + distX},${startY} ${endX - distX},${endY} ${endX},${endY}`;
+
           return (
             <g key={conn.id}>
-              <line
-                x1={startX}
-                y1={startY}
-                x2={endX}
-                y2={endY}
+              <path
+                d={pathData}
+                fill="none"
                 stroke="var(--accent-hover)"
                 strokeWidth={2 * zoom}
                 strokeDasharray="4 4"
@@ -169,9 +198,17 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
                 left: `${node.x}px`,
                 top: `${node.y}px`,
                 width: `${node.width}px`,
+                height: `${node.height}px`,
                 background: isSticky ? 'rgba(210, 153, 34, 0.15)' : 'var(--bg-secondary)',
                 borderColor: isSelected ? 'var(--border-focus)' : node.color || 'var(--border-color)',
-                boxShadow: isSticky ? '0 4px 16px rgba(210, 153, 34, 0.2)' : '0 8px 32px rgba(0,0,0,0.4)'
+                boxShadow: isSticky ? '0 4px 16px rgba(210, 153, 34, 0.2)' : '0 8px 32px rgba(0,0,0,0.4)',
+                position: 'absolute',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '12px',
+                borderRadius: '8px',
+                borderWidth: '1px',
+                borderStyle: 'solid'
               }}
               onMouseDown={(e) => handleMouseDown(node, e)}
             >
@@ -179,8 +216,8 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
                 <span style={{ fontSize: '13px', fontWeight: '600', color: isSticky ? '#d29922' : 'var(--text-primary)' }}>{node.title}</span>
                 <button 
                   className="btn-icon" 
-                  style={{ padding: '2px', color: 'var(--danger)' }} 
-                  onClick={() => handleDeleteNode(node.id)}
+                  style={{ padding: '2px', color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }} 
+                  onClick={(e) => { e.stopPropagation(); handleDeleteNode(node.id); }}
                   title="Delete Card"
                 >
                   <Trash2 size={13} />
@@ -193,15 +230,35 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
                   const val = e.target.value;
                   setNodes(nodes.map(n => n.id === node.id ? { ...n, content: val } : n));
                 }}
+                onMouseDown={(e) => {
+                   setSelectedNodeId(node.id);
+                   e.stopPropagation();
+                }}
                 style={{
                   width: '100%',
-                  height: '65px',
+                  flex: 1,
                   background: 'transparent',
                   border: 'none',
                   color: isSticky ? '#f0f6fc' : 'var(--text-secondary)',
                   fontSize: '12px',
                   outline: 'none',
                   resize: 'none'
+                }}
+              />
+              
+              {/* Resize Handle */}
+              <div
+                className="resize-handle"
+                onMouseDown={(e) => handleResizeMouseDown(node, e)}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  bottom: 0,
+                  width: '16px',
+                  height: '16px',
+                  cursor: 'nwse-resize',
+                  borderBottomRightRadius: '8px',
+                  background: 'linear-gradient(135deg, transparent 50%, var(--border-color) 50%)'
                 }}
               />
             </div>

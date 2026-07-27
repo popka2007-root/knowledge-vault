@@ -9,7 +9,10 @@ import { DashboardView } from './modules/dashboard/DashboardView';
 import { CalendarView } from './modules/calendar/CalendarView';
 import { TaskManager } from './modules/tasks/TaskManager';
 import { CommandPaletteModal } from './modules/workspace/CommandPaletteModal';
-import { Note, Folder, ViewMode, Theme, SyncState } from './types';
+import { TrashBinView } from './components/TrashBinView';
+import { VersionHistoryModal } from './components/VersionHistoryModal';
+import { loadNotesFromIDB, saveNotesToIDB } from './utils/storage';
+import { Note, Folder, ViewMode, Theme, SyncState, NoteSnapshot } from './types';
 import { Language } from './utils/i18n';
 import { processTemplate, DEFAULT_TEMPLATES } from './modules/templater/templateEngine';
 
@@ -137,13 +140,26 @@ export const App: React.FC = () => {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [targetVaultNote, setTargetVaultNote] = useState<Note | null>(null);
 
-  // Sync to LocalStorage
+  // History Modal State
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
+  // Load from IndexedDB on startup
   useEffect(() => {
+    loadNotesFromIDB().then(idbNotes => {
+      if (idbNotes && idbNotes.length > 0) {
+        setNotes(idbNotes);
+      }
+    });
+  }, []);
+
+  // Sync to IndexedDB & LocalStorage
+  useEffect(() => {
+    saveNotesToIDB(notes);
     try {
       localStorage.setItem('kv_notes', JSON.stringify(notes));
     } catch (e) {
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        alert('Storage quota exceeded! Cannot save notes.');
+        alert('Storage quota exceeded! Using IndexedDB storage.');
       }
     }
   }, [notes]);
@@ -177,6 +193,7 @@ export const App: React.FC = () => {
   const allTags = Array.from(new Set(notes.flatMap(n => n.tags)));
 
   const filteredNotes = notes.filter(note => {
+    if (note.isDeleted) return false;
     if (showFavoritesOnly && !note.isFavorite) return false;
     if (selectedFolder && note.folder !== selectedFolder) return false;
     if (selectedTag && !note.tags.includes(selectedTag)) return false;
@@ -190,14 +207,14 @@ export const App: React.FC = () => {
     return true;
   });
 
-  const selectedNote = notes.find(n => n.id === selectedNoteId) || (notes.length > 0 ? notes[0] : null);
+  const selectedNote = notes.find(n => n.id === selectedNoteId && !n.isDeleted) || (filteredNotes.length > 0 ? filteredNotes[0] : null);
 
   const handleOpenNoteTab = (id: string) => {
     if (!openTabIds.includes(id)) {
       setOpenTabIds([...openTabIds, id]);
     }
     setSelectedNoteId(id);
-    if (isMobile) setMobileView('workspace');
+    setMobileView('workspace');
   };
 
   const handleCloseNoteTab = (id: string, e: React.MouseEvent) => {
@@ -234,7 +251,7 @@ export const App: React.FC = () => {
 
   const handleNewNoteForDate = (dateStr: string) => {
     const journalTitle = `Daily Journal — ${dateStr}`;
-    const existing = notes.find(n => n.title.toLowerCase() === journalTitle.toLowerCase());
+    const existing = notes.find(n => n.title.toLowerCase() === journalTitle.toLowerCase() && !n.isDeleted);
     if (existing) {
       handleOpenNoteTab(existing.id);
       setViewMode('notes');
@@ -265,11 +282,37 @@ export const App: React.FC = () => {
     setNotes(notes.map(n => n.id === updated.id ? updated : n));
   };
 
-  const handleDeleteNote = (id: string) => {
-    const remaining = notes.filter(n => n.id !== id);
-    setNotes(remaining);
+  const handleSoftDeleteNote = (id: string) => {
+    setNotes(notes.map(n => n.id === id ? { ...n, isDeleted: true, deletedAt: Date.now() } : n));
     setOpenTabIds(openTabIds.filter(tId => tId !== id));
+    const remaining = filteredNotes.filter(n => n.id !== id);
     setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null);
+  };
+
+  const handleRestoreNote = (id: string) => {
+    setNotes(notes.map(n => n.id === id ? { ...n, isDeleted: false, deletedAt: undefined } : n));
+  };
+
+  const handlePermanentDeleteNote = (id: string) => {
+    setNotes(notes.filter(n => n.id !== id));
+  };
+
+  const handleEmptyTrash = () => {
+    if (window.confirm('Are you sure you want to permanently delete all items in the trash?')) {
+      setNotes(notes.filter(n => !n.isDeleted));
+    }
+  };
+
+  const handleRestoreSnapshot = (snapshot: NoteSnapshot) => {
+    if (selectedNote) {
+      handleUpdateNote({
+        ...selectedNote,
+        title: snapshot.title,
+        content: snapshot.content,
+        updatedAt: Date.now()
+      });
+      setHistoryModalOpen(false);
+    }
   };
 
   const handleToggleFavorite = (id: string, e: React.MouseEvent) => {
@@ -462,13 +505,24 @@ export const App: React.FC = () => {
               note={selectedNote}
               folders={folders}
               onUpdateNote={handleUpdateNote}
-              onDeleteNote={handleDeleteNote}
+              onDeleteNote={handleSoftDeleteNote}
               allNotes={notes}
               onSelectNoteByTitle={handleSelectNoteByTitle}
               onLockVaultNote={handleLockVaultNote}
+              onOpenHistory={() => setHistoryModalOpen(true)}
               lang={lang}
             />
           </div>
+        )}
+
+        {viewMode === 'trash' && (
+          <TrashBinView
+            notes={notes}
+            onRestoreNote={handleRestoreNote}
+            onPermanentDeleteNote={handlePermanentDeleteNote}
+            onEmptyTrash={handleEmptyTrash}
+            lang={lang}
+          />
         )}
 
         {viewMode === 'calendar' && (
@@ -526,6 +580,15 @@ export const App: React.FC = () => {
         onNewNote={handleNewNote}
         onSetViewMode={setViewMode}
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      />
+
+      {/* Note Version History Modal */}
+      <VersionHistoryModal
+        note={selectedNote}
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        onRestoreSnapshot={handleRestoreSnapshot}
+        lang={lang}
       />
     </div>
   );

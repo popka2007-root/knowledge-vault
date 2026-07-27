@@ -1,5 +1,6 @@
 :root {
   /* Dark Theme (Ultra-Modern Glassmorphism Default) */
+  color-scheme: dark;
   --bg-primary: #090d13;
   --bg-secondary: rgba(22, 27, 34, 0.75);
   --bg-tertiary: rgba(33, 38, 45, 0.8);

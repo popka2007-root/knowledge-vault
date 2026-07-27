@@ -64,7 +64,7 @@ export function executeDataviewQuery(
   let filteredNotes = [...notes];
 
   // Filter by tag
-  const tagMatch = lower.match(/tag\s*=\s*#?([\p{L}0-9_\-]+)/u);
+  const tagMatch = lower.match(/tag\s*=\s*#?([^\s]+)/);
   if (tagMatch) {
     const targetTag = tagMatch[1];
     filteredNotes = filteredNotes.filter(n => n.tags.map(t => t.toLowerCase()).includes(targetTag.toLowerCase()));
