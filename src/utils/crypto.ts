@@ -19,7 +19,7 @@ export function decryptNoteContent(encryptedText: string, masterPassword: string
   try {
     const bytes = CryptoJS.AES.decrypt(encryptedText, masterPassword);
     const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-    if (!decrypted) {
+    if (decrypted === '' && bytes.sigBytes < 0) {
       throw new Error('Invalid password');
     }
     return decrypted;

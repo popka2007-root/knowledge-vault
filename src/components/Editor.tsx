@@ -61,6 +61,20 @@ export const Editor: React.FC<EditorProps> = ({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const contentRef = useRef(content);
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutIdRef.current) {
+        clearTimeout(timeoutIdRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (note) {
@@ -82,7 +96,6 @@ export const Editor: React.FC<EditorProps> = ({
     );
   }
 
-  // Handle instant auto-save on typing
   const handleContentChange = (newContent: string) => {
     setContent(newContent);
     setSaveStatus('saving');
@@ -90,7 +103,11 @@ export const Editor: React.FC<EditorProps> = ({
     const autoTags = extractTags(newContent).filter(t => !/^\s*#\s/.test(t));
     const combinedTags = Array.from(new Set([...(note.tags || []), ...autoTags]));
 
-    setTimeout(() => {
+    if (timeoutIdRef.current) {
+      clearTimeout(timeoutIdRef.current);
+    }
+
+    timeoutIdRef.current = setTimeout(() => {
       onUpdateNote({
         ...note,
         title,
@@ -142,7 +159,7 @@ export const Editor: React.FC<EditorProps> = ({
     reader.onload = (e) => {
       const base64Data = e.target?.result as string;
       const markdownImage = `\n![${file.name}](${base64Data})\n`;
-      handleContentChange(content + markdownImage);
+      handleContentChange(contentRef.current + markdownImage);
     };
     reader.readAsDataURL(file);
   };

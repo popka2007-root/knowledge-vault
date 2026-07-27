@@ -81,11 +81,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ notes, onUpdateNote, l
     };
 
     // Attach to first note or active note
-    if (notes.length > 0) {
-      const firstNote = notes[0];
-      const updatedTasks = [...(firstNote.tasks || []), newTask];
-      onUpdateNote({ ...firstNote, tasks: updatedTasks });
+    if (notes.length === 0) {
+      alert("No notes available. Please create a note first to add tasks.");
+      return;
     }
+
+    const firstNote = notes[0];
+    const updatedTasks = [...(firstNote.tasks || []), newTask];
+    onUpdateNote({ ...firstNote, tasks: updatedTasks });
 
     setNewTaskTitle('');
     setNewTaskDueDate('');
