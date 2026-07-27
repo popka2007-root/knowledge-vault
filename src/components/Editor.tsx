@@ -290,10 +290,16 @@ export const Editor: React.FC<EditorProps> = ({
       return `___BLOCK_${placeholders.length - 1}___`;
     });
 
+    let taskIndex = 0;
     rendered = rendered
       // Task Lists (- [ ] or - [x])
-      .replace(/^- \[ \] (.*$)/gim, '<div style="display:flex; align-items:center; gap:8px; margin:4px 0;"><input type="checkbox" disabled style="accent-color:var(--accent-primary); cursor:pointer;" /> <span>$1</span></div>')
-      .replace(/^- \[x\] (.*$)/gim, '<div style="display:flex; align-items:center; gap:8px; margin:4px 0; text-decoration:line-through; opacity:0.6;"><input type="checkbox" checked disabled /> <span>$1</span></div>')
+      .replace(/^- \[([ x])\] (.*$)/gim, (_, checkedStr, text) => {
+        const isChecked = checkedStr.toLowerCase() === 'x';
+        const checkedAttr = isChecked ? 'checked' : '';
+        const style = isChecked ? 'text-decoration:line-through; opacity:0.6;' : '';
+        const idx = taskIndex++;
+        return `<div style="display:flex; align-items:center; gap:8px; margin:4px 0; ${style}"><input type="checkbox" class="task-checkbox" data-task-index="${idx}" ${checkedAttr} style="accent-color:var(--accent-primary); cursor:pointer;" /> <span>${text}</span></div>`;
+      })
       // Markdown Tables
       .replace(/\|(.+)\|/g, (match) => {
         const cells = match.split('|').filter(c => c.trim() !== '');
@@ -505,6 +511,21 @@ export const Editor: React.FC<EditorProps> = ({
                 if (target.classList.contains('wikilink')) {
                   const linkTitle = target.getAttribute('data-link');
                   if (linkTitle) onSelectNoteByTitle(linkTitle);
+                } else if (target.classList.contains('task-checkbox')) {
+                  const idxStr = target.getAttribute('data-task-index');
+                  if (idxStr !== null) {
+                    const idxToToggle = parseInt(idxStr, 10);
+                    let currentIndex = 0;
+                    const newContent = content.replace(/^- \[([ x])\]/gim, (match, checkedStr) => {
+                      if (currentIndex === idxToToggle) {
+                        currentIndex++;
+                        return checkedStr.toLowerCase() === 'x' ? '- [ ]' : '- [x]';
+                      }
+                      currentIndex++;
+                      return match;
+                    });
+                    handleContentChange(newContent);
+                  }
                 }
               }}
             />
