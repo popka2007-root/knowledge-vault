@@ -1,7 +1,7 @@
 {
   "name": "knowledge-vault",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,8 +10,35 @@
     "server": "node server/index.js",
     "electron:start": "electron electron/main.js",
     "build:exe": "npm run build && npx electron-builder --win",
+    "build:linux": "npm run build && npx electron-builder --linux",
     "build:apk": "npm run build && npx cap sync android"
   },
+  "build": {
+    "appId": "com.knowledge-vault.app",
+    "productName": "Knowledge Vault",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "electron/icon.ico"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "category": "Utility",
+      "icon": "electron/icon.png"
+    },
+    "android": {}
+  },
+  "main": "electron/main.js",
   "dependencies": {
     "@capacitor/android": "^5.7.0",
     "@capacitor/core": "^5.7.0",

@@ -1,72 +1,94 @@
-name: Build & Release Executables (.exe & .apk)
+name: Build & Release (EXE + APK + AppImage)
 
 on:
   push:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
+  # ─── Windows EXE ───────────────────────────────────────────────
   release-windows:
-    name: Build Windows EXE
+    name: 🪟 Windows EXE
     runs-on: windows-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Install & Build EXE
+        run: |
+          npm install
+          npm run build:exe
 
-      - name: Build Web App & Electron Executable
-        run: npm run build:exe
-
-      - name: Upload Windows Asset
-        uses: softprops/action-gh-release@v1
+      - name: Upload EXE to Release
+        uses: softprops/action-gh-release@v2
         with:
           files: dist_electron/*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true
 
-  release-android:
-    name: Build Android APK
+  # ─── Linux AppImage + deb ───────────────────────────────────────
+  release-linux:
+    name: 🐧 Linux AppImage + deb
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install system deps for electron-builder
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y rpm fakeroot dpkg
+
+      - name: Install & Build Linux
+        run: |
+          npm install
+          npm run build:linux
+
+      - name: Upload Linux assets to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist_electron/*.AppImage
+            dist_electron/*.deb
+
+  # ─── Android APK ───────────────────────────────────────────────
+  release-android:
+    name: 🤖 Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Install Dependencies & Sync Android
+      - name: Install, build & sync Capacitor
         run: |
           npm install
           npm run build
-          npx @capacitor/cli add android || true
-          npx @capacitor/cli sync android || true
+          npx @capacitor/cli add android 2>/dev/null || true
+          npx @capacitor/cli sync android
 
-      - name: Build Android APK
+      - name: Build APK
         run: |
-          if [ -d "android" ]; then
-            cd android && ./gradlew assembleDebug
-          else
-            echo "Android folder not initialized, creating fallback APK payload"
-          fi
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Android APK Asset
-        uses: softprops/action-gh-release@v1
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v2
         with:
           files: android/app/build/outputs/apk/debug/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
