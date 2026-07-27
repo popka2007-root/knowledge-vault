@@ -36,8 +36,9 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
 
   // Initialize graph nodes & links from note WikiLinks
   useEffect(() => {
-    const width = 800;
-    const height = 600;
+    const canvas = canvasRef.current;
+    const width = canvas ? canvas.clientWidth : 800;
+    const height = canvas ? canvas.clientHeight : 600;
 
     // Calculate WikiLinks connections
     const links: LinkItem[] = [];
@@ -86,12 +87,28 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-
     const runSimulation = () => {
+      // Ensure canvas internal resolution matches CSS display size
+      const cssWidth = canvas.clientWidth;
+      const cssHeight = canvas.clientHeight;
+      if (canvas.width !== cssWidth || canvas.height !== cssHeight) {
+        canvas.width = cssWidth;
+        canvas.height = cssHeight;
+      }
+      
+      const width = canvas.width;
+      const height = canvas.height;
+
       const nodes = nodesRef.current;
       const links = linksRef.current;
+
+      // Apply Center Gravity to keep nodes from flying off
+      nodes.forEach(n => {
+        const dx = (width / 2) - n.x;
+        const dy = (height / 2) - n.y;
+        n.vx += dx * 0.002;
+        n.vy += dy * 0.002;
+      });
 
       // Apply Repulsion between nodes
       for (let i = 0; i < nodes.length; i++) {
@@ -260,8 +277,6 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
       {/* HTML5 Interactive Graph Canvas */}
       <canvas
         ref={canvasRef}
-        width={1000}
-        height={700}
         onClick={handleCanvasClick}
         onMouseMove={handleCanvasMouseMove}
         style={{ width: '100%', height: '100%', cursor: hoveredNode ? 'pointer' : 'default' }}
