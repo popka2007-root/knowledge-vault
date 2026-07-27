@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Move, Trash2, ArrowRight, FileText, ZoomIn, ZoomOut } from 'lucide-react';
 import { CanvasNode, CanvasConnection, Note } from '../types';
 
@@ -9,9 +9,9 @@ interface CanvasViewProps {
 
 export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => {
   const [nodes, setNodes] = useState<CanvasNode[]>([
-    { id: 'node-1', title: 'Main Project Vision', content: 'Notesnook + Obsidian + AFFiNE hybrid knowledge workspace.', x: 100, y: 120, width: 220, height: 120, color: '#1f6feb' },
-    { id: 'node-2', title: 'Security & E2EE', content: 'Client-side AES-256 encrypted vaults for password protection.', x: 420, y: 80, width: 220, height: 120, color: '#a371f7' },
-    { id: 'node-3', title: 'Graph & WikiLinks', content: 'Bi-directional [[links]] and interactive 2D graph view.', x: 420, y: 260, width: 220, height: 120, color: '#2ea043' }
+    { id: 'node-1', title: 'Main Project Vision', content: 'Notesnook + Obsidian + AFFiNE hybrid knowledge workspace.', x: 100, y: 120, width: 240, height: 130, color: '#1f6feb' },
+    { id: 'node-2', title: 'Security & E2EE', content: 'Client-side AES-256 encrypted vaults for password protection.', x: 440, y: 80, width: 240, height: 130, color: '#a371f7' },
+    { id: 'node-3', title: 'Graph & WikiLinks', content: 'Bi-directional [[links]] and interactive 2D graph view.', x: 440, y: 270, width: 240, height: 130, color: '#2ea043' }
   ]);
 
   const [connections, setConnections] = useState<CanvasConnection[]>([
@@ -24,15 +24,47 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
 
+  // Global mousemove & mouseup listeners for smooth dragging
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (draggingNodeId) {
+        setNodes(prevNodes => prevNodes.map(n => {
+          if (n.id === draggingNodeId) {
+            return {
+              ...n,
+              x: (e.clientX - dragOffset.x) / zoom,
+              y: (e.clientY - dragOffset.y) / zoom
+            };
+          }
+          return n;
+        }));
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      setDraggingNodeId(null);
+    };
+
+    if (draggingNodeId) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [draggingNodeId, dragOffset, zoom]);
+
   const handleAddNode = () => {
     const newNode: CanvasNode = {
       id: `node-${Date.now()}`,
       title: 'New Canvas Card',
       content: 'Click to edit card details...',
-      x: 200 + Math.random() * 50,
-      y: 200 + Math.random() * 50,
-      width: 220,
-      height: 120,
+      x: 200 + Math.random() * 60,
+      y: 200 + Math.random() * 60,
+      width: 240,
+      height: 130,
       color: '#1f6feb'
     };
     setNodes([...nodes, newNode]);
@@ -49,38 +81,15 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
     setSelectedNodeId(node.id);
     setDraggingNodeId(node.id);
     setDragOffset({
-      x: e.clientX - node.x,
-      y: e.clientY - node.y
+      x: e.clientX - node.x * zoom,
+      y: e.clientY - node.y * zoom
     });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (draggingNodeId) {
-      setNodes(nodes.map(n => {
-        if (n.id === draggingNodeId) {
-          return {
-            ...n,
-            x: e.clientX - dragOffset.x,
-            y: e.clientY - dragOffset.y
-          };
-        }
-        return n;
-      }));
-    }
-  };
-
-  const handleMouseUp = () => {
-    setDraggingNodeId(null);
-  };
-
   return (
-    <div 
-      style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--bg-primary)', userSelect: 'none' }}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-    >
+    <div style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--bg-primary)', userSelect: 'none' }}>
       {/* Top Floating Controls */}
-      <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, display: 'flex', gap: '8px', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+      <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, display: 'flex', gap: '8px', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', backdropFilter: 'blur(12px)' }}>
         <button className="btn btn-primary" onClick={handleAddNode} style={{ padding: '6px 12px', fontSize: '12px' }}>
           <Plus size={14} />
           <span>Add Card</span>
@@ -160,7 +169,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
                 }}
                 style={{
                   width: '100%',
-                  height: '60px',
+                  height: '65px',
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--text-secondary)',
