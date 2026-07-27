@@ -19,24 +19,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
-      - name: Generate placeholder icon (Windows)
+      - name: Generate build icon (PNG only — electron-builder accepts PNG for NSIS)
         shell: pwsh
         run: |
-          # Create a minimal valid ICO file (16x16 blue square) using PowerShell
+          New-Item -ItemType Directory -Force -Path "build" | Out-Null
           Add-Type -AssemblyName System.Drawing
-          $bmp = New-Object System.Drawing.Bitmap(256, 256)
+          $w = 256; $h = 256
+          $bmp = New-Object System.Drawing.Bitmap($w, $h, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
           $g = [System.Drawing.Graphics]::FromImage($bmp)
-          $g.Clear([System.Drawing.Color]::FromArgb(31, 111, 235))
+          # Background circle
+          $brush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 31, 111, 235))
+          $g.FillEllipse($brush, 10, 10, $w - 20, $h - 20)
+          # "KV" text
+          $font = New-Object System.Drawing.Font("Arial", 80, [System.Drawing.FontStyle]::Bold)
+          $textBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
+          $sf = New-Object System.Drawing.StringFormat
+          $sf.Alignment = [System.Drawing.StringAlignment]::Center
+          $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
+          $g.DrawString("KV", $font, $textBrush, [System.Drawing.RectangleF]::FromLTRB(0, 0, $w, $h), $sf)
           $g.Dispose()
-          $bmp.Save("electron\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          # Convert PNG to ICO via .NET
-          $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
-          $fs = [System.IO.File]::Open("electron\icon.ico", [System.IO.FileMode]::Create)
-          $icon.Save($fs)
-          $fs.Close()
+          $bmp.Save("build\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
           $bmp.Dispose()
-          Write-Host "Icons created successfully"
+          Write-Host "Icon created at build/icon.png"
+          Get-Item "build\icon.png"
 
       - name: Install dependencies
         run: npm install
@@ -49,12 +56,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: List output
+        run: dir dist_electron /s /b || echo "No dist_electron"
+        shell: cmd
+
       - name: Upload EXE to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist_electron/*.exe
-            dist_electron/*.msi
+          files: dist_electron/*.exe
           fail_on_unmatched_files: false
           generate_release_notes: true
 
@@ -68,38 +77,53 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
-      - name: Install system dependencies
+      - name: Install system deps
         run: |
           sudo apt-get update -y
           sudo apt-get install -y rpm fakeroot dpkg imagemagick
 
-      - name: Generate placeholder icon (Linux)
+      - name: Generate build icon (Linux)
         run: |
-          mkdir -p electron
-          convert -size 256x256 xc:"#1f6feb" \
-            -font DejaVu-Sans-Bold -pointsize 80 \
-            -fill white -gravity center -annotate 0 "KV" \
-            electron/icon.png || \
-          python3 -c "
+          mkdir -p build
+          # Try imagemagick first
+          if command -v convert &>/dev/null; then
+            convert -size 256x256 xc:"#1f6feb" \
+              -font DejaVu-Sans-Bold -pointsize 80 \
+              -fill white -gravity center -annotate 0 "KV" \
+              build/icon.png
+            echo "Icon created via ImageMagick"
+          else
+            # Python fallback with correct color-type 6 (RGBA)
+            python3 - <<'EOF'
           import struct, zlib
+
           def png_chunk(name, data):
-              c = zlib.crc32(name + data) & 0xffffffff
-              return struct.pack('>I', len(data)) + name + data + struct.pack('>I', c)
+              crc = zlib.crc32(name + data) & 0xffffffff
+              return struct.pack('>I', len(data)) + name + data + struct.pack('>I', crc)
+
           w, h = 256, 256
           raw = b''
           for y in range(h):
-              raw += b'\x00'
+              raw += b'\x00'  # filter byte
               for x in range(w):
+                  # RGBA blue #1f6feb ff
                   raw += bytes([31, 111, 235, 255])
-          compressed = zlib.compress(raw)
-          with open('electron/icon.png', 'wb') as f:
+
+          compressed = zlib.compress(raw, 9)
+
+          with open('build/icon.png', 'wb') as f:
               f.write(b'\x89PNG\r\n\x1a\n')
-              f.write(png_chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)))
+              # IHDR: width, height, bit-depth=8, color-type=6 (RGBA), compression=0, filter=0, interlace=0
+              f.write(png_chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)))
               f.write(png_chunk(b'IDAT', compressed))
               f.write(png_chunk(b'IEND', b''))
-          print('PNG created via python fallback')
-          "
+
+          print('PNG created via Python (RGBA, color-type 6)')
+          EOF
+          fi
+          ls -la build/icon.png
 
       - name: Install dependencies
         run: npm install
@@ -111,6 +135,9 @@ jobs:
         run: npx electron-builder --linux AppImage deb --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List output
+        run: ls -la dist_electron/ || echo "No dist_electron"
 
       - name: Upload Linux assets to Release
         uses: softprops/action-gh-release@v2
@@ -132,18 +159,22 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      # Install Android SDK (CRITICAL — ubuntu-latest has no SDK by default)
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
       - name: Install dependencies & build web
         run: |
           npm install
           npm run build
 
-      - name: Initialize Capacitor Android
+      - name: Initialize Capacitor Android platform
         run: |
-          # Add android platform if not already present
           if [ ! -d "android" ]; then
             npx cap add android
           fi
@@ -153,15 +184,19 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Build debug APK
+        # pipefail ensures Gradle failures propagate correctly
         run: |
+          set -o pipefail
           cd android
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -50
+          ./gradlew assembleDebug --no-daemon --warning-mode=none 2>&1 | tee /tmp/gradle.log
+          echo "Gradle exit code: $?"
+        continue-on-error: false
 
-      - name: Find and rename APK
+      - name: Collect APK
         run: |
-          find android -name "*.apk" -exec ls -la {} \;
           mkdir -p apk-output
           find android -name "*.apk" -exec cp {} apk-output/KnowledgeVault-debug.apk \;
+          ls -la apk-output/
 
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2

@@ -1,6 +1,5 @@
 {
   "appId": "com.knowledgevault.app",
   "appName": "Knowledge Vault",
-  "webDir": "dist",
-  "bundledWebRuntime": false
+  "webDir": "dist"
 }

@@ -25,11 +25,13 @@
       "electron/**/*"
     ],
     "win": {
+      "icon": "build/icon.png",
       "target": [
         { "target": "nsis", "arch": ["x64"] }
       ]
     },
     "linux": {
+      "icon": "build/icon.png",
       "target": [
         { "target": "AppImage", "arch": ["x64"] },
         { "target": "deb", "arch": ["x64"] }
