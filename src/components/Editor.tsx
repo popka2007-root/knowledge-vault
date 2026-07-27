@@ -535,6 +535,13 @@ export const Editor: React.FC<EditorProps> = ({
               className="editor-textarea"
               value={content}
               onChange={(e) => handleContentChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.ctrlKey || e.metaKey) {
+                  if (e.key === 'b') { e.preventDefault(); insertText('**', '**'); }
+                  else if (e.key === 'i') { e.preventDefault(); insertText('*', '*'); }
+                  else if (e.key === 'u') { e.preventDefault(); insertText('<u>', '</u>'); }
+                }
+              }}
               placeholder="Start writing... Use #tags, [[wiki-links]], - [ ] task lists, | tables |, or $math$ formulas."
               style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }}
             />

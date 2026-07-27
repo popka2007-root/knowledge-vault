@@ -89,8 +89,8 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
 
     const runSimulation = () => {
       // Ensure canvas internal resolution matches CSS display size
-      const cssWidth = canvas.clientWidth;
-      const cssHeight = canvas.clientHeight;
+      const cssWidth = Math.max(canvas.clientWidth, 300);
+      const cssHeight = Math.max(canvas.clientHeight, 300);
       if (canvas.width !== cssWidth || canvas.height !== cssHeight) {
         canvas.width = cssWidth;
         canvas.height = cssHeight;
