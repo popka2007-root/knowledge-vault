@@ -11,6 +11,8 @@ import { TaskManager } from './modules/tasks/TaskManager';
 import { CommandPaletteModal } from './modules/workspace/CommandPaletteModal';
 import { TrashBinView } from './components/TrashBinView';
 import { VersionHistoryModal } from './components/VersionHistoryModal';
+import { KanbanView } from './modules/kanban/KanbanView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadNotesFromIDB, saveNotesToIDB } from './utils/storage';
 import { Note, Folder, ViewMode, Theme, SyncState, NoteSnapshot } from './types';
 import { Language } from './utils/i18n';
@@ -124,6 +126,7 @@ export const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [theme, setTheme] = useState<Theme>('dark');
   const [syncState, setSyncState] = useState<SyncState>('synced');
+  const [isLoadedFromIDB, setIsLoadedFromIDB] = useState(false);
   
   // Mobile Responsiveness State
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -143,33 +146,42 @@ export const App: React.FC = () => {
   // History Modal State
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
-  // Load from IndexedDB on startup
+  // Load from IndexedDB on startup safely
   useEffect(() => {
-    loadNotesFromIDB().then(idbNotes => {
-      if (idbNotes && idbNotes.length > 0) {
-        setNotes(idbNotes);
-      }
-    });
+    loadNotesFromIDB()
+      .then(idbNotes => {
+        if (idbNotes && idbNotes.length > 0) {
+          setNotes(idbNotes);
+        }
+      })
+      .catch(err => {
+        console.error('Failed loading notes from IndexedDB:', err);
+      })
+      .finally(() => {
+        setIsLoadedFromIDB(true);
+      });
   }, []);
 
-  // Sync to IndexedDB & LocalStorage
+  // Sync to IndexedDB & LocalStorage safely (only after initial IDB load completes)
   useEffect(() => {
-    saveNotesToIDB(notes);
+    if (!isLoadedFromIDB) return;
+    
+    saveNotesToIDB(notes).catch(err => console.error('Failed saving notes to IndexedDB:', err));
     try {
       localStorage.setItem('kv_notes', JSON.stringify(notes));
     } catch (e) {
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        alert('Storage quota exceeded! Using IndexedDB storage.');
+        console.warn('Storage quota exceeded! Saved to IndexedDB.');
       }
     }
-  }, [notes]);
+  }, [notes, isLoadedFromIDB]);
 
   useEffect(() => {
     try {
       localStorage.setItem('kv_folders', JSON.stringify(folders));
     } catch (e) {
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        alert('Storage quota exceeded! Cannot save folders.');
+        console.warn('Storage quota exceeded! Cannot save folders to LocalStorage.');
       }
     }
   }, [folders]);
@@ -190,18 +202,18 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const allTags = Array.from(new Set(notes.flatMap(n => n.tags)));
+  const allTags = Array.from(new Set(notes.flatMap(n => n.tags || [])));
 
   const filteredNotes = notes.filter(note => {
     if (note.isDeleted) return false;
     if (showFavoritesOnly && !note.isFavorite) return false;
     if (selectedFolder && note.folder !== selectedFolder) return false;
-    if (selectedTag && !note.tags.includes(selectedTag)) return false;
+    if (selectedTag && (!note.tags || !note.tags.includes(selectedTag))) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const matchTitle = note.title.toLowerCase().includes(q);
-      const matchContent = note.content.toLowerCase().includes(q);
-      const matchTags = note.tags.some(t => t.toLowerCase().includes(q));
+      const matchTitle = (note.title || '').toLowerCase().includes(q);
+      const matchContent = (note.content || '').toLowerCase().includes(q);
+      const matchTags = (note.tags || []).some(t => (t || '').toLowerCase().includes(q));
       return matchTitle || matchContent || matchTags;
     }
     return true;
@@ -284,9 +296,10 @@ export const App: React.FC = () => {
 
   const handleSoftDeleteNote = (id: string) => {
     setNotes(notes.map(n => n.id === id ? { ...n, isDeleted: true, deletedAt: Date.now() } : n));
-    setOpenTabIds(openTabIds.filter(tId => tId !== id));
-    const remaining = filteredNotes.filter(n => n.id !== id);
-    setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null);
+    const remainingTabs = openTabIds.filter(tId => tId !== id);
+    setOpenTabIds(remainingTabs);
+    const remainingNotes = filteredNotes.filter(n => n.id !== id);
+    setSelectedNoteId(remainingNotes.length > 0 ? remainingNotes[0].id : null);
   };
 
   const handleRestoreNote = (id: string) => {
@@ -295,11 +308,22 @@ export const App: React.FC = () => {
 
   const handlePermanentDeleteNote = (id: string) => {
     setNotes(notes.filter(n => n.id !== id));
+    const remainingTabs = openTabIds.filter(tId => tId !== id);
+    setOpenTabIds(remainingTabs);
+    if (selectedNoteId === id) {
+      setSelectedNoteId(remainingTabs.length > 0 ? remainingTabs[remainingTabs.length - 1] : null);
+    }
   };
 
   const handleEmptyTrash = () => {
     if (window.confirm('Are you sure you want to permanently delete all items in the trash?')) {
+      const deletedIds = new Set(notes.filter(n => n.isDeleted).map(n => n.id));
       setNotes(notes.filter(n => !n.isDeleted));
+      const remainingTabs = openTabIds.filter(tId => !deletedIds.has(tId));
+      setOpenTabIds(remainingTabs);
+      if (selectedNoteId && deletedIds.has(selectedNoteId)) {
+        setSelectedNoteId(remainingTabs.length > 0 ? remainingTabs[remainingTabs.length - 1] : null);
+      }
     }
   };
 
@@ -333,7 +357,7 @@ export const App: React.FC = () => {
   };
 
   const handleSelectNoteByTitle = (title: string) => {
-    const target = notes.find(n => n.title.toLowerCase().trim() === title.toLowerCase().trim());
+    const target = notes.find(n => (n.title || '').toLowerCase().trim() === title.toLowerCase().trim());
     if (target) {
       handleOpenNoteTab(target.id);
       setViewMode('notes');
@@ -412,7 +436,7 @@ export const App: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', width: isMobile ? '100%' : 'auto', height: '100%' }}>
           {isMobile && (
             <div style={{ padding: '8px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-              <button className="btn" onClick={() => setMobileView('sidebar')}>
+              <button className="btn" aria-label="Open Menu" onClick={() => setMobileView('sidebar')}>
                 ← Menu
               </button>
             </div>
@@ -439,121 +463,151 @@ export const App: React.FC = () => {
       <main style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {isMobile && (
           <div style={{ padding: '8px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-            <button className="btn" onClick={() => setMobileView(viewMode === 'notes' ? 'notelist' : 'sidebar')}>
+            <button className="btn" aria-label="Go back" onClick={() => setMobileView(viewMode === 'notes' ? 'notelist' : 'sidebar')}>
               ← Back
             </button>
           </div>
         )}
-        {viewMode === 'dashboard' && (
-          <DashboardView
-            notes={notes}
-            onSelectNote={(id) => {
-              handleOpenNoteTab(id);
-              setViewMode('notes');
-            }}
-            onNewNote={handleNewNote}
-            onNewCanvas={() => setViewMode('canvas')}
-          />
-        )}
 
-        {viewMode === 'notes' && (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Top Workspace Tab Bar */}
-            {openTabIds.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '4px 8px 0 8px', gap: '4px', overflowX: 'auto' }}>
-                {openTabIds.map(tId => {
-                  const tNote = notes.find(n => n.id === tId);
-                  if (!tNote) return null;
-                  const isActive = tId === selectedNoteId;
-                  return (
-                    <div
-                      key={tId}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        fontWeight: isActive ? '600' : '400',
-                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        background: isActive ? 'var(--bg-primary)' : 'var(--bg-tertiary)',
-                        borderTopLeftRadius: '8px',
-                        borderTopRightRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        borderBottom: isActive ? '1px solid var(--bg-primary)' : '1px solid var(--border-color)',
-                        cursor: 'pointer',
-                        userSelect: 'none'
-                      }}
-                      onClick={() => setSelectedNoteId(tId)}
-                    >
-                      <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {tNote.title}
-                      </span>
-                      <button
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 2px', borderRadius: '50%' }}
-                        onClick={(e) => handleCloseNoteTab(tId, e)}
+        <ErrorBoundary fallbackTitle="Workspace failed to load view">
+          {viewMode === 'dashboard' && (
+            <DashboardView
+              notes={notes}
+              onSelectNote={(id) => {
+                handleOpenNoteTab(id);
+                setViewMode('notes');
+              }}
+              onNewNote={handleNewNote}
+              onNewCanvas={() => setViewMode('canvas')}
+            />
+          )}
+
+          {viewMode === 'notes' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Top Workspace Tab Bar */}
+              {openTabIds.length > 0 && (
+                <div 
+                  role="tablist"
+                  aria-label="Open note tabs"
+                  style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '4px 8px 0 8px', gap: '4px', overflowX: 'auto' }}
+                >
+                  {openTabIds.map(tId => {
+                    const tNote = notes.find(n => n.id === tId);
+                    if (!tNote) return null;
+                    const isActive = tId === selectedNoteId;
+                    return (
+                      <div
+                        key={tId}
+                        role="tab"
+                        aria-selected={isActive}
+                        tabIndex={0}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: isActive ? '600' : '400',
+                          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          background: isActive ? 'var(--bg-primary)' : 'var(--bg-tertiary)',
+                          borderTopLeftRadius: '8px',
+                          borderTopRightRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          borderBottom: isActive ? '1px solid var(--bg-primary)' : '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                        onClick={() => setSelectedNoteId(tId)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedNoteId(tId);
+                          }
+                        }}
                       >
-                        ×
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {tNote.title}
+                        </span>
+                        <button
+                          aria-label={`Close tab ${tNote.title}`}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 2px', borderRadius: '50%' }}
+                          onClick={(e) => handleCloseNoteTab(tId, e)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-            <Editor
-              note={selectedNote}
-              folders={folders}
-              onUpdateNote={handleUpdateNote}
-              onDeleteNote={handleSoftDeleteNote}
-              allNotes={notes}
-              onSelectNoteByTitle={handleSelectNoteByTitle}
-              onLockVaultNote={handleLockVaultNote}
-              onOpenHistory={() => setHistoryModalOpen(true)}
+              <Editor
+                note={selectedNote}
+                folders={folders}
+                onUpdateNote={handleUpdateNote}
+                onDeleteNote={handleSoftDeleteNote}
+                allNotes={notes}
+                onSelectNoteByTitle={handleSelectNoteByTitle}
+                onLockVaultNote={handleLockVaultNote}
+                onOpenHistory={() => setHistoryModalOpen(true)}
+                lang={lang}
+              />
+            </div>
+          )}
+
+          {viewMode === 'trash' && (
+            <TrashBinView
+              notes={notes}
+              onRestoreNote={handleRestoreNote}
+              onPermanentDeleteNote={handlePermanentDeleteNote}
+              onEmptyTrash={handleEmptyTrash}
               lang={lang}
             />
-          </div>
-        )}
+          )}
 
-        {viewMode === 'trash' && (
-          <TrashBinView
-            notes={notes}
-            onRestoreNote={handleRestoreNote}
-            onPermanentDeleteNote={handlePermanentDeleteNote}
-            onEmptyTrash={handleEmptyTrash}
-            lang={lang}
-          />
-        )}
+          {viewMode === 'calendar' && (
+            <CalendarView
+              notes={notes}
+              onSelectNote={(id) => {
+                handleOpenNoteTab(id);
+                setViewMode('notes');
+              }}
+              onNewNoteForDate={handleNewNoteForDate}
+            />
+          )}
 
-        {viewMode === 'calendar' && (
-          <CalendarView
-            notes={notes}
-            onSelectNote={(id) => {
+          {viewMode === 'tasks' && (
+            <TaskManager
+              notes={notes}
+              onUpdateNote={handleUpdateNote}
+              lang={lang}
+            />
+          )}
+
+          {viewMode === 'kanban' && (
+            <KanbanView
+              notes={notes}
+              onSelectNote={(id) => {
+                handleOpenNoteTab(id);
+                setViewMode('notes');
+              }}
+              onUpdateNote={handleUpdateNote}
+              onNewNote={handleNewNote}
+              lang={lang}
+            />
+          )}
+
+          {viewMode === 'canvas' && (
+            <CanvasView notes={notes} onOpenNote={setSelectedNoteId} />
+          )}
+
+          {viewMode === 'graph' && (
+            <GraphView notes={notes} onSelectNote={(id) => {
               handleOpenNoteTab(id);
               setViewMode('notes');
-            }}
-            onNewNoteForDate={handleNewNoteForDate}
-          />
-        )}
-
-        {viewMode === 'tasks' && (
-          <TaskManager
-            notes={notes}
-            onUpdateNote={handleUpdateNote}
-            lang={lang}
-          />
-        )}
-
-        {viewMode === 'canvas' && (
-          <CanvasView notes={notes} onOpenNote={setSelectedNoteId} />
-        )}
-
-        {viewMode === 'graph' && (
-          <GraphView notes={notes} onSelectNote={(id) => {
-            handleOpenNoteTab(id);
-            setViewMode('notes');
-          }} />
-        )}
+            }} />
+          )}
+        </ErrorBoundary>
       </main>
       )}
 

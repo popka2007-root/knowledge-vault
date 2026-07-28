@@ -1,5 +1,5 @@
-export type ViewMode = 'notes' | 'canvas' | 'graph' | 'dashboard' | 'calendar' | 'tasks' | 'trash';
-export type Theme = 'dark' | 'light';
+export type ViewMode = 'notes' | 'canvas' | 'graph' | 'dashboard' | 'calendar' | 'tasks' | 'kanban' | 'trash';
+export type Theme = 'dark' | 'light' | 'cyberpunk' | 'sepia';
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
 
 export interface PageBanner {
