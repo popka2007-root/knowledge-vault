@@ -351,9 +351,9 @@ export const Editor: React.FC<EditorProps> = ({
         .replace(/\[\[(.*?)\]\]/g, '<span class="wikilink" data-link="$1">[[ $1 ]]</span>')
         .replace(/\n/g, '<br/>');
 
-      // Use replaceAll with replacer function to avoid treating $1 / $$ as replacement backreferences
+      // Use replace with global RegExp replacer function to avoid treating $1 / $$ as replacement backreferences
       placeholders.forEach((ph, i) => {
-        rendered = rendered.replaceAll(`___BLOCK_${i}___`, () => ph);
+        rendered = rendered.replace(new RegExp(`___BLOCK_${i}___`, 'g'), () => ph);
       });
 
       return { __html: rendered };
@@ -626,6 +626,27 @@ export const Editor: React.FC<EditorProps> = ({
             <DocumentOutline content={content} lang={lang} />
           </ErrorBoundary>
         )}
+      </div>
+
+      {/* Editor Bottom Status Bar with Word Count & Reading Time */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '4px 16px',
+        background: 'var(--bg-secondary)',
+        borderTop: '1px solid var(--border-color)',
+        fontSize: '11px',
+        color: 'var(--text-muted)'
+      }}>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <span>Words: <strong style={{ color: 'var(--text-primary)' }}>{content.trim() ? content.trim().split(/\s+/).length : 0}</strong></span>
+          <span>Chars: <strong style={{ color: 'var(--text-primary)' }}>{content.length}</strong></span>
+          <span>Reading Time: <strong style={{ color: 'var(--text-primary)' }}>~{Math.max(1, Math.ceil((content.trim() ? content.trim().split(/\s+/).length : 0) / 200))} min</strong></span>
+        </div>
+        <div>
+          <span>Storage: LocalFirst &amp; Sync</span>
+        </div>
       </div>
 
       <AICopilotModal

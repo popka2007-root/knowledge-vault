@@ -7,6 +7,8 @@ import {
 import { Folder, ViewMode, Theme, SyncState, Note } from '../types';
 import { Language, t } from '../utils/i18n';
 import { exportVaultToObsidianZip, parseObsidianNote } from '../utils/obsidianSync';
+import { exportVaultToJSON } from '../utils/export';
+import { PomodoroWidget } from './PomodoroWidget';
 
 interface SidebarProps {
   notes: Note[];
@@ -29,7 +31,7 @@ interface SidebarProps {
   lang: Language;
   setLang: (lang: Language) => void;
   onImportObsidianNotes: (notes: Note[]) => void;
-  onOpenDailyNote: () => void;
+  onOpenDailyNote?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -361,18 +363,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer System Status & Command Palette Trigger */}
       <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <button 
-          className="btn" 
-          aria-label="Open Command Palette (Ctrl+P)"
-          style={{ width: '100%', justifyContent: 'space-between', fontSize: '11px' }} 
-          onClick={onOpenCommandPalette}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Command size={13} aria-hidden="true" />
-            <span>Command Palette</span>
-          </div>
-          <span style={{ color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '1px 5px', borderRadius: '4px' }}>Ctrl+P</span>
-        </button>
+        <PomodoroWidget />
+
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button 
+            className="btn" 
+            aria-label="Open Command Palette (Ctrl+P)"
+            style={{ flex: 1, justifyContent: 'space-between', fontSize: '11px' }} 
+            onClick={onOpenCommandPalette}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Command size={13} aria-hidden="true" />
+              <span>Palette</span>
+            </div>
+            <span style={{ color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '1px 4px', borderRadius: '4px' }}>Ctrl+P</span>
+          </button>
+
+          <button
+            className="btn"
+            style={{ padding: '4px 8px', fontSize: '11px' }}
+            onClick={() => exportVaultToJSON(notes, folders)}
+            title="Export Full JSON Backup"
+          >
+            Backup
+          </button>
+        </div>
 
         <button 
           className="btn" 

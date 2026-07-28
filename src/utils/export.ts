@@ -74,3 +74,24 @@ export function exportNoteToHTML(note: Note) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Full JSON Vault Backup
+ */
+export function exportVaultToJSON(notes: Note[], folders: any[]) {
+  const backupData = {
+    version: '1.2.0',
+    exportedAt: new Date().toISOString(),
+    notes,
+    folders
+  };
+  const jsonString = JSON.stringify(backupData, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `knowledge-vault-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+

@@ -16,6 +16,9 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadNotesFromIDB, saveNotesToIDB } from './utils/storage';
 import { Note, Folder, ViewMode, Theme, SyncState, NoteSnapshot } from './types';
 import { Language } from './utils/i18n';
+import { ToastContainer } from './components/ToastContainer';
+import { ShortcutsModal } from './components/ShortcutsModal';
+import { PomodoroWidget } from './components/PomodoroWidget';
 import { processTemplate, DEFAULT_TEMPLATES } from './modules/templater/templateEngine';
 
 const INITIAL_NOTES: Note[] = [
@@ -190,12 +193,17 @@ export const App: React.FC = () => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Global Ctrl+P / Cmd+K Command Palette Keyboard Listener
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+
+  // Global Keyboard Shortcuts Listener (Ctrl+P / Cmd+K / ?)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'p' || e.key.toLowerCase() === 'k')) {
         e.preventDefault();
         setCommandPaletteOpen(prev => !prev);
+      } else if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault();
+        setShortcutsModalOpen(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -428,6 +436,7 @@ export const App: React.FC = () => {
         lang={lang}
         setLang={setLang}
         onImportObsidianNotes={handleImportObsidianNotes}
+        onOpenDailyNote={() => handleNewNoteForDate(new Date().toISOString().slice(0, 10))}
       />
       )}
 
@@ -644,6 +653,16 @@ export const App: React.FC = () => {
         onRestoreSnapshot={handleRestoreSnapshot}
         lang={lang}
       />
+
+      {/* Shortcuts Cheat Sheet Modal */}
+      <ShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+        lang={lang}
+      />
+
+      {/* Global Toast System */}
+      <ToastContainer />
     </div>
   );
 };
