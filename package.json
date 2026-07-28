@@ -2,6 +2,10 @@
   "name": "knowledge-vault",
   "private": true,
   "version": "1.2.0",
+  "author": {
+    "name": "Knowledge Vault",
+    "email": "dev@knowledge-vault.app"
+  },
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
