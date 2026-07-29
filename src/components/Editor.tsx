@@ -22,6 +22,7 @@ import { BacklinksPanel } from '../modules/links/BacklinksPanel';
 import { executeDataviewQuery } from '../modules/dataview/queryEngine';
 import { BlockEditor } from './BlockEditor';
 import { ErrorBoundary } from './ErrorBoundary';
+import { MarkTextEditor } from './marktext/MarkTextEditor';
 
 const escapeHtml = (str: string) => {
   if (!str) return '';
@@ -595,21 +596,11 @@ export const Editor: React.FC<EditorProps> = ({
                 }}
               />
             ) : (
-              <textarea
-                ref={textareaRef}
-                className="editor-textarea"
-                value={content}
-                aria-label="Note Content Markdown Editor"
-                onChange={(e) => handleContentChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.ctrlKey || e.metaKey) {
-                    if (e.key === 'b') { e.preventDefault(); insertText('**', '**'); }
-                    else if (e.key === 'i') { e.preventDefault(); insertText('*', '*'); }
-                    else if (e.key === 'u') { e.preventDefault(); insertText('<u>', '</u>'); }
-                  }
-                }}
-                placeholder="Start writing... Use #tags, [[wiki-links]], - [ ] task lists, | tables |, or $math$ formulas."
-                style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }}
+              <MarkTextEditor
+                content={content}
+                onChange={handleContentChange}
+                fontSize={fontSize}
+                fontFamily={fontFamily}
               />
             )}
           </ErrorBoundary>
