@@ -178,6 +178,11 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
 
       {/* SVG Canvas Connections Overlay */}
       <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-hover)" />
+          </marker>
+        </defs>
         {connections.map(conn => {
           const fromNode = nodes.find(n => n.id === conn.fromNodeId);
           const toNode = nodes.find(n => n.id === conn.toNodeId);
@@ -199,7 +204,7 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
                 fill="none"
                 stroke="var(--accent-hover)"
                 strokeWidth={2 * zoom}
-                strokeDasharray="4 4"
+                markerEnd="url(#arrow)"
               />
             </g>
           );
