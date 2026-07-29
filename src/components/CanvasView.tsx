@@ -69,19 +69,35 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
     };
   }, [draggingNodeId, resizingNodeId, dragOffset, zoom]);
 
-  const handleAddCardNode = () => {
+  const addCard = () => {
     const newNode: CanvasNode = {
       id: `node-${Date.now()}`,
       title: 'New Canvas Card',
-      content: 'Click to edit card details...',
-      x: 200 + Math.random() * 60,
-      y: 200 + Math.random() * 60,
-      width: 240,
-      height: 130,
+      content: 'Click to edit card content...',
+      x: 200 + Math.random() * 50,
+      y: 200 + Math.random() * 50,
+      width: 220,
+      height: 120,
       color: '#1f6feb',
       type: 'card'
     };
-    setNodes([...nodes, newNode]);
+    setNodes(prev => [...prev, newNode]);
+    setSelectedNodeId(newNode.id);
+  };
+
+  const addStickyNote = (color: string) => {
+    const newNode: CanvasNode = {
+      id: `node-${Date.now()}`,
+      title: 'Sticky Note',
+      content: 'Write quick idea or reminder...',
+      x: 220 + Math.random() * 60,
+      y: 220 + Math.random() * 60,
+      width: 180,
+      height: 140,
+      color: color,
+      type: 'card'
+    };
+    setNodes(prev => [...prev, newNode]);
     setSelectedNodeId(newNode.id);
   };
 
@@ -134,14 +150,19 @@ export const CanvasView: React.FC<CanvasViewProps> = ({ notes, onOpenNote }) => 
     <div style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden', background: 'var(--bg-primary)', userSelect: 'none' }}>
       {/* AFFiNE Floating Toolbar */}
       <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, display: 'flex', gap: '8px', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', backdropFilter: 'blur(16px)' }}>
-        <button className="btn btn-primary" onClick={handleAddCardNode} style={{ padding: '6px 12px', fontSize: '12px' }}>
+        <button className="btn btn-primary" onClick={addCard} style={{ padding: '6px 12px', fontSize: '12px' }}>
           <Plus size={14} />
           <span>Note Card</span>
         </button>
 
-        <button className="btn" onClick={handleAddStickyNote} style={{ padding: '6px 12px', fontSize: '12px' }}>
-          <StickyNote size={14} style={{ color: '#d29922' }} />
-          <span>Sticky Note</span>
+        <button className="btn" onClick={() => addStickyNote('#ffb703')} style={{ padding: '6px 12px', fontSize: '12px' }}>
+          <StickyNote size={14} style={{ color: '#ffb703' }} />
+          <span>Yellow Sticky</span>
+        </button>
+
+        <button className="btn" onClick={() => addStickyNote('#ff007f')} style={{ padding: '6px 12px', fontSize: '12px' }}>
+          <StickyNote size={14} style={{ color: '#ff007f' }} />
+          <span>Pink Sticky</span>
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid var(--border-color)', paddingLeft: '8px' }}>
