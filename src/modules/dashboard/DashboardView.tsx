@@ -22,12 +22,12 @@ interface DashboardViewProps {
 }
 
 const DEFAULT_WIDGETS: DashboardWidget[] = [
-  { id: 'w-progress', type: 'daily_progress', title: 'Daily Goal Progress', visible: true, order: 1 },
-  { id: 'w-tasks', type: 'tasks_today', title: 'Today Tasks', visible: true, order: 2 },
-  { id: 'w-deadlines', type: 'deadlines', title: 'Upcoming Deadlines', visible: true, order: 3 },
-  { id: 'w-notes', type: 'recent_notes', title: 'Recent Notes', visible: true, order: 4 },
-  { id: 'w-stats', type: 'weekly_stats', title: 'Weekly Productivity', visible: true, order: 5 },
-  { id: 'w-actions', type: 'quick_actions', title: 'Quick Actions', visible: true, order: 6 }
+  { id: 'w-progress', type: 'daily_progress', title: 'Прогресс целей', visible: true, order: 1 },
+  { id: 'w-tasks', type: 'tasks_today', title: 'Активные задачи', visible: true, order: 2 },
+  { id: 'w-deadlines', type: 'deadlines', title: 'Срочные дедлайны', visible: true, order: 3 },
+  { id: 'w-notes', type: 'recent_notes', title: 'Недавние заметки', visible: true, order: 4 },
+  { id: 'w-stats', type: 'weekly_stats', title: 'Продуктивность недели', visible: true, order: 5 },
+  { id: 'w-actions', type: 'quick_actions', title: 'Быстрые действия', visible: true, order: 6 }
 ];
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -54,14 +54,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <LayoutDashboard size={22} color="var(--accent-hover)" />
-            Personal Executive Dashboard
+            Персональная панель управления
           </h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Overview of tasks, deadlines, notes, and productivity</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Обзор задач, сроков, недавних заметок и продуктивности</p>
         </div>
 
         <button className="btn" onClick={() => setShowConfig(!showConfig)}>
           <Sliders size={14} />
-          <span>Customize Widgets</span>
+          <span>Настроить виджеты</span>
         </button>
       </div>
 

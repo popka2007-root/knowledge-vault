@@ -154,9 +154,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <option value="ru">RU</option>
             <option value="en">EN</option>
-            <option value="de">DE</option>
-            <option value="es">ES</option>
-            <option value="fr">FR</option>
           </select>
         </div>
       </div>
@@ -238,7 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => setViewMode('graph')}
         >
           <GitFork size={16} aria-hidden="true" />
-          <span>{t('knowledgeGraph', lang)}</span>
+          <span>{t('graphView', lang)}</span>
         </button>
 
         <button
@@ -395,8 +392,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer System Status & Command Palette Trigger */}
       <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <PomodoroWidget />
-
         <div style={{ display: 'flex', gap: '6px' }}>
           <button 
             className="btn" 
@@ -420,16 +415,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Backup
           </button>
         </div>
-
-        <button 
-          className="btn" 
-          aria-label="Encrypted Vault"
-          style={{ width: '100%', justifyContent: 'flex-start' }} 
-          onClick={onOpenVaultModal}
-        >
-          <Shield size={16} style={{ color: 'var(--vault-purple)' }} aria-hidden="true" />
-          <span>{t('encryptedVault', lang)}</span>
-        </button>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
