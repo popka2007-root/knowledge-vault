@@ -26,7 +26,8 @@ import {
   Mic,
   Printer,
   Download,
-  History
+  History,
+  Database
 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
 
@@ -47,6 +48,7 @@ interface EditorToolbarProps {
   onExportPDF: () => void;
   onExportHTML: () => void;
   onOpenHistory?: () => void;
+  onOpenDataviewBuilder?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -65,7 +67,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenAudioRecorder,
   onExportPDF,
   onExportHTML,
-  onOpenHistory
+  onOpenHistory,
+  onOpenDataviewBuilder
 }) => {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
@@ -312,6 +315,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       {onOpenHistory && (
         <button className="btn-icon" onClick={onOpenHistory} title={t('versionHistory', lang)}>
           <History size={16} color="var(--accent-hover)" />
+        </button>
+      )}
+      {onOpenDataviewBuilder && (
+        <button className="btn-icon" onClick={onOpenDataviewBuilder} title="Dataview Query Builder">
+          <Database size={16} color="var(--accent-primary)" />
         </button>
       )}
 

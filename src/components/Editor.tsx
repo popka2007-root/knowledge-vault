@@ -23,6 +23,7 @@ import { executeDataviewQuery } from '../modules/dataview/queryEngine';
 import { BlockEditor } from './BlockEditor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { MarkTextEditor } from './marktext/MarkTextEditor';
+import { DataviewBuilderModal } from './DataviewBuilderModal';
 
 const escapeHtml = (str: string) => {
   if (!str) return '';
@@ -72,6 +73,7 @@ export const Editor: React.FC<EditorProps> = ({
   // Modals
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [audioModalOpen, setAudioModalOpen] = useState(false);
+  const [dataviewModalOpen, setDataviewModalOpen] = useState(false);
 
   // Toolbar styles
   const [fontSize, setFontSize] = useState(16);
@@ -653,6 +655,13 @@ export const Editor: React.FC<EditorProps> = ({
         isOpen={audioModalOpen}
         onClose={() => setAudioModalOpen(false)}
         onInsertAudio={(audioTag) => handleContentChange(content + audioTag)}
+      />
+
+      <DataviewBuilderModal
+        isOpen={dataviewModalOpen}
+        onClose={() => setDataviewModalOpen(false)}
+        onInsertQuery={(queryCode) => handleContentChange(content + '\n' + queryCode)}
+        availableTags={Array.from(new Set(allNotes.flatMap(n => n.tags || [])))}
       />
     </div>
   );
