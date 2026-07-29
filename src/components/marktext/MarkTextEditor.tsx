@@ -15,14 +15,16 @@ interface MarkTextEditorProps {
   fontFamily?: string;
 }
 
-export const MarkTextEditor: React.FC<MarkTextEditorProps> = ({
+export const MarkTextEditor = React.forwardRef<HTMLTextAreaElement, MarkTextEditorProps>(({
   content,
   onChange,
   placeholder = 'Type / for commands or start writing...',
   fontSize = 16,
   fontFamily = 'var(--font-sans)'
-}) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+}, ref) => {
+  const internalRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = (ref as React.MutableRefObject<HTMLTextAreaElement>) || internalRef;
+
   const [activeLineIndex, setActiveLineIndex] = useState<number>(0);
   const [cursorPos, setCursorPos] = useState<number>(0);
 
@@ -250,4 +252,4 @@ export const MarkTextEditor: React.FC<MarkTextEditorProps> = ({
       />
     </div>
   );
-};
+});

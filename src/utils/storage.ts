@@ -73,7 +73,11 @@ export async function saveNotesToIDB(notes: Note[]): Promise<void> {
     });
   } catch (e) {
     console.warn('IndexedDB fallback to LocalStorage:', e);
-    localStorage.setItem('kv_notes', JSON.stringify(notes));
+    try {
+      localStorage.setItem('kv_notes', JSON.stringify(notes));
+    } catch (lsError) {
+      console.error('LocalStorage quota exceeded or disabled:', lsError);
+    }
   }
 }
 

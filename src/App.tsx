@@ -129,6 +129,10 @@ export const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [theme, setTheme] = useState<Theme>('dark');
   const [syncState, setSyncState] = useState<SyncState>('synced');
+  
+  // Split-Screen Dual View State
+  const [isSplitView, setIsSplitView] = useState<boolean>(false);
+  const [secondNoteId, setSecondNoteId] = useState<string | null>(null);
   const [isLoadedFromIDB, setIsLoadedFromIDB] = useState(false);
   
   // Mobile Responsiveness State
@@ -547,22 +551,56 @@ export const App: React.FC = () => {
                       </div>
                     );
                   })}
+                {/* Split View Toggle Button */}
+                <button
+                  className={`btn ${isSplitView ? 'btn-primary' : ''}`}
+                  style={{ marginLeft: 'auto', padding: '4px 8px', fontSize: '11px' }}
+                  onClick={() => {
+                    setIsSplitView(!isSplitView);
+                    if (!secondNoteId && openTabIds.length > 1) {
+                      setSecondNoteId(openTabIds[1]);
+                    }
+                  }}
+                  title="Toggle Split-Screen Dual Editor View"
+                >
+                  ⚡ {isSplitView ? 'Single View' : 'Split View'}
+                </button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+              <div style={{ flex: 1, height: '100%', borderRight: isSplitView ? '1px solid var(--border-color)' : 'none' }}>
+                <Editor
+                  note={selectedNote}
+                  folders={folders}
+                  onUpdateNote={handleUpdateNote}
+                  onDeleteNote={handleSoftDeleteNote}
+                  allNotes={notes}
+                  onSelectNoteByTitle={handleSelectNoteByTitle}
+                  onLockVaultNote={handleLockVaultNote}
+                  onOpenHistory={() => setHistoryModalOpen(true)}
+                  lang={lang}
+                />
+              </div>
+
+              {isSplitView && (
+                <div style={{ flex: 1, height: '100%' }}>
+                  <Editor
+                    note={notes.find(n => n.id === (secondNoteId || openTabIds[1] || selectedNoteId)) || selectedNote}
+                    folders={folders}
+                    onUpdateNote={handleUpdateNote}
+                    onDeleteNote={handleSoftDeleteNote}
+                    allNotes={notes}
+                    onSelectNoteByTitle={handleSelectNoteByTitle}
+                    onLockVaultNote={handleLockVaultNote}
+                    onOpenHistory={() => setHistoryModalOpen(true)}
+                    lang={lang}
+                  />
                 </div>
               )}
-
-              <Editor
-                note={selectedNote}
-                folders={folders}
-                onUpdateNote={handleUpdateNote}
-                onDeleteNote={handleSoftDeleteNote}
-                allNotes={notes}
-                onSelectNoteByTitle={handleSelectNoteByTitle}
-                onLockVaultNote={handleLockVaultNote}
-                onOpenHistory={() => setHistoryModalOpen(true)}
-                lang={lang}
-              />
             </div>
-          )}
+          </div>
+        )}
 
           {viewMode === 'trash' && (
             <TrashBinView

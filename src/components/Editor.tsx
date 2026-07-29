@@ -597,6 +597,7 @@ export const Editor: React.FC<EditorProps> = ({
               />
             ) : (
               <MarkTextEditor
+                ref={textareaRef}
                 content={content}
                 onChange={handleContentChange}
                 fontSize={fontSize}

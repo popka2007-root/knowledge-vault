@@ -26,7 +26,9 @@ export const VaultModal: React.FC<VaultModalProps> = ({
 
   const isLocking = !note.isEncrypted;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -35,10 +37,11 @@ export const VaultModal: React.FC<VaultModalProps> = ({
       return;
     }
 
+    setIsProcessing(true);
     try {
       if (isLocking) {
         // Lock & Encrypt with AES-256
-        const encrypted = encryptNoteContent(note.content, password);
+        const encrypted = await encryptNoteContent(note.content, password);
         onSuccess({
           ...note,
           isEncrypted: true,
@@ -50,7 +53,7 @@ export const VaultModal: React.FC<VaultModalProps> = ({
         if (!note.encryptedData) {
           throw new Error('No encrypted data found.');
         }
-        const decrypted = decryptNoteContent(note.encryptedData, password);
+        const decrypted = await decryptNoteContent(note.encryptedData, password);
         onSuccess({
           ...note,
           isEncrypted: false,
@@ -62,6 +65,8 @@ export const VaultModal: React.FC<VaultModalProps> = ({
       onClose();
     } catch (err: any) {
       setError(err.message || 'Decryption failed. Invalid password.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -113,12 +118,12 @@ export const VaultModal: React.FC<VaultModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn" onClick={onClose} disabled={isProcessing}>
               {t('cancel', lang)}
             </button>
-            <button type="submit" className="btn btn-primary" style={{ background: 'var(--vault-purple)', borderColor: 'var(--vault-purple)' }}>
-              {isLocking ? <Lock size={14} /> : <Unlock size={14} />}
-              <span>{isLocking ? t('lock', lang) : t('unlock', lang)}</span>
+            <button type="submit" className="btn btn-primary" style={{ background: 'var(--vault-purple)', borderColor: 'var(--vault-purple)' }} disabled={isProcessing}>
+              {isProcessing ? null : (isLocking ? <Lock size={14} /> : <Unlock size={14} />)}
+              <span>{isProcessing ? 'Processing...' : (isLocking ? t('lock', lang) : t('unlock', lang))}</span>
             </button>
           </div>
         </form>
