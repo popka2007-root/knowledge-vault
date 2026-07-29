@@ -23,6 +23,7 @@ import { executeDataviewQuery } from '../modules/dataview/queryEngine';
 import { BlockEditor } from './BlockEditor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { MarkTextEditor } from './marktext/MarkTextEditor';
+import { CodeMirrorEditor } from './marktext/codemirror/CodeMirrorEditor';
 import { DataviewBuilderModal } from './DataviewBuilderModal';
 
 const escapeHtml = (str: string) => {
@@ -598,8 +599,7 @@ export const Editor: React.FC<EditorProps> = ({
                 }}
               />
             ) : (
-              <MarkTextEditor
-                ref={textareaRef}
+              <CodeMirrorEditor
                 content={content}
                 onChange={handleContentChange}
                 fontSize={fontSize}
