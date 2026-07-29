@@ -66,11 +66,20 @@ export function executeDataviewQuery(
       };
     }
 
-    // 2. Note / Document Queries
+    // 2. Note / Document Queries (Obsidian Dataview DQL Parsing)
     let filteredNotes = [...safeNotes];
 
-    // Filter by tag
-    const tagMatch = lower.match(/tag\s*=\s*['"]?#?([^\s'"]+)/);
+    // DQL FROM tag parsing: FROM #tag or FROM #folder
+    const fromMatch = cleanQuery.match(/FROM\s+#?([\p{L}\p{N}_-]+)/iu);
+    if (fromMatch) {
+      const targetTag = fromMatch[1].toLowerCase();
+      filteredNotes = filteredNotes.filter(n => 
+        n && Array.isArray(n.tags) && n.tags.some(t => typeof t === 'string' && t.toLowerCase() === targetTag)
+      );
+    }
+
+    // Filter by tag syntax: tag = #tag or tag = tag
+    const tagMatch = lower.match(/tag\s*=\s*['"]?#?([\p{L}\p{N}_-]+)/u);
     if (tagMatch) {
       const targetTag = tagMatch[1].toLowerCase();
       filteredNotes = filteredNotes.filter(n => 
@@ -88,28 +97,59 @@ export function executeDataviewQuery(
       filteredNotes = filteredNotes.filter(n => !n || !Array.isArray(n.tags) || n.tags.length === 0);
     }
 
-    // Sort
-    if (lower.includes('sort by created') || lower.includes('order by created')) {
+    // DQL SORT parsing: SORT file.mtime DESC or SORT file.name ASC
+    if (cleanQuery.match(/SORT\s+file\.name\s+ASC/i)) {
+      filteredNotes.sort((a, b) => (a?.title || '').localeCompare(b?.title || ''));
+    } else if (cleanQuery.match(/SORT\s+file\.name\s+DESC/i)) {
+      filteredNotes.sort((a, b) => (b?.title || '').localeCompare(a?.title || ''));
+    } else if (cleanQuery.match(/SORT\s+file\.ctime\s+ASC/i)) {
+      filteredNotes.sort((a, b) => (a?.createdAt || 0) - (b?.createdAt || 0));
+    } else if (cleanQuery.match(/SORT\s+file\.ctime\s+DESC/i)) {
       filteredNotes.sort((a, b) => (b?.createdAt || 0) - (a?.createdAt || 0));
     } else {
+      // Default: sort by last modified timestamp DESC
       filteredNotes.sort((a, b) => (b?.updatedAt || 0) - (a?.updatedAt || 0));
     }
 
     filteredNotes = filteredNotes.slice(0, limit);
 
+    // Extract dynamic DQL TABLE fields if specified: TABLE file.name, file.mtime, tags
+    const tableMatch = cleanQuery.match(/TABLE\s+(.+?)(?=\s+FROM|\s+WHERE|\s+SORT|\s+LIMIT|$)/i);
+    let customHeaders = ['Title', 'Last Modified', 'Tags'];
+
+    if (tableMatch && tableMatch[1].trim()) {
+      const rawFields = tableMatch[1].split(',').map(f => f.trim());
+      if (rawFields.length > 0) {
+        customHeaders = rawFields.map(f => {
+          if (f === 'file.name' || f === 'file.title') return 'Title';
+          if (f === 'file.mtime') return 'Last Modified';
+          if (f === 'file.ctime') return 'Created Date';
+          if (f === 'tags') return 'Tags';
+          return f;
+        });
+      }
+    }
+
     return {
       type: 'table',
-      headers: ['Title', 'Folder', 'Tags', 'Last Modified'],
-      rows: filteredNotes.map(n => [
-        n?.title || 'Untitled Note',
-        n?.folder || 'Unfiled',
-        n && Array.isArray(n.tags) && n.tags.length > 0 ? n.tags.map(t => `#${t}`).join(', ') : 'None',
-        n?.updatedAt && !isNaN(n.updatedAt) ? new Date(n.updatedAt).toLocaleDateString() : 'N/A'
-      ]),
+      headers: customHeaders,
+      rows: filteredNotes.map(n => {
+        const formattedDate = n?.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : 'Unknown';
+        const formattedCreated = n?.createdAt ? new Date(n.createdAt).toLocaleDateString() : 'Unknown';
+        const tagsStr = (n?.tags || []).map(t => `#${t}`).join(', ') || 'No tags';
+
+        return customHeaders.map(h => {
+          if (h === 'Title') return n?.title || 'Untitled';
+          if (h === 'Last Modified') return formattedDate;
+          if (h === 'Created Date') return formattedCreated;
+          if (h === 'Tags') return tagsStr;
+          return n?.title || 'Untitled';
+        });
+      }),
       totalCount: filteredNotes.length
     };
   } catch (err) {
-    console.error('Dataview query execution error:', err);
+    console.error('Failed executing Dataview DQL query:', err);
     return {
       type: 'table',
       headers: ['Error'],
