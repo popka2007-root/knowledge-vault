@@ -356,15 +356,39 @@ export const App: React.FC = () => {
     setNotes(notes.map(n => n.id === id ? { ...n, isFavorite: !n.isFavorite } : n));
   };
 
-  const handleNewFolder = () => {
-    const folderName = prompt('Enter folder name:');
-    if (folderName) {
+  const handleNewFolder = (parentId: string | null = null) => {
+    const folderName = prompt(lang === 'ru' ? 'Введите название папки:' : 'Enter folder name:');
+    if (folderName && folderName.trim()) {
       const newFolder: Folder = {
         id: `folder-${Date.now()}`,
-        name: folderName,
-        parentId: null
+        name: folderName.trim(),
+        parentId: parentId
       };
       setFolders([...folders, newFolder]);
+    }
+  };
+
+  const handleNewSubFolder = (parentId: string) => {
+    handleNewFolder(parentId);
+  };
+
+  const handleRenameFolder = (folderId: string, currentName: string) => {
+    const newName = prompt(lang === 'ru' ? 'Новое название папки:' : 'Enter new folder name:', currentName);
+    if (newName && newName.trim() && newName.trim() !== currentName) {
+      setFolders(folders.map(f => f.id === folderId ? { ...f, name: newName.trim() } : f));
+    }
+  };
+
+  const handleDeleteFolder = (folderId: string) => {
+    const targetFolder = folders.find(f => f.id === folderId);
+    if (!targetFolder) return;
+
+    if (window.confirm(lang === 'ru' ? `Удалить папку "${targetFolder.name}"? Заметки останутся в основном списке.` : `Delete folder "${targetFolder.name}"? Notes will remain.`)) {
+      setNotes(notes.map(n => n.folder === folderId ? { ...n, folder: '' } : n));
+      setFolders(folders.filter(f => f.id !== folderId && f.parentId !== folderId));
+      if (selectedFolder === folderId) {
+        setSelectedFolder(null);
+      }
     }
   };
 
@@ -429,6 +453,9 @@ export const App: React.FC = () => {
         setTheme={setTheme}
         syncState={syncState}
         onNewFolder={handleNewFolder}
+        onNewSubFolder={handleNewSubFolder}
+        onRenameFolder={handleRenameFolder}
+        onDeleteFolder={handleDeleteFolder}
         onOpenVaultModal={() => {
           if (selectedNote) {
             handleLockVaultNote(selectedNote);

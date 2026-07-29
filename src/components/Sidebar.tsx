@@ -8,7 +8,7 @@ import { Folder, ViewMode, Theme, SyncState, Note } from '../types';
 import { Language, t } from '../utils/i18n';
 import { exportVaultToObsidianZip, parseObsidianNote } from '../utils/obsidianSync';
 import { exportVaultToJSON } from '../utils/export';
-import { PomodoroWidget } from './PomodoroWidget';
+import { FolderTree } from './FolderTree';
 
 interface SidebarProps {
   notes: Note[];
@@ -26,6 +26,9 @@ interface SidebarProps {
   setTheme: (theme: Theme) => void;
   syncState: SyncState;
   onNewFolder: () => void;
+  onNewSubFolder?: (parentId: string) => void;
+  onRenameFolder?: (folderId: string, currentName: string) => void;
+  onDeleteFolder?: (folderId: string) => void;
   onOpenVaultModal: () => void;
   onOpenCommandPalette: () => void;
   lang: Language;
@@ -50,6 +53,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setTheme,
   syncState,
   onNewFolder,
+  onNewSubFolder,
+  onRenameFolder,
+  onDeleteFolder,
   onOpenVaultModal,
   onOpenCommandPalette,
   lang,
@@ -285,74 +291,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Folders Section */}
+      {/* Folders Section with FolderTree */}
       <div style={{ marginBottom: '20px', flex: 1, overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', marginBottom: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            {t('folders', lang)}
-          </span>
-          <button className="btn-icon" onClick={onNewFolder} title="New Folder" aria-label="Create New Folder">
-            <FolderPlus size={14} aria-hidden="true" />
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {folders.filter(f => !f.parentId).map(folder => {
-            const subFolders = folders.filter(f => f.parentId === folder.id);
-            return (
-              <div key={folder.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                <button
-                  className="btn"
-                  aria-label={`Folder ${folder.name}`}
-                  style={{
-                    justifyContent: 'flex-start',
-                    width: '100%',
-                    background: selectedFolder === folder.id ? 'var(--bg-hover)' : 'transparent',
-                    border: 'none',
-                    color: selectedFolder === folder.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: '12px'
-                  }}
-                  onClick={() => {
-                    setViewMode('notes');
-                    setSelectedFolder(folder.id);
-                    setSelectedTag(null);
-                  }}
-                >
-                  <FolderPlus size={14} aria-hidden="true" />
-                  <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder.name}</span>
-                </button>
-
-                {/* Nested Sub-Folders */}
-                {subFolders.length > 0 && (
-                  <div style={{ paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '2px', borderLeft: '1px solid var(--border-color)', marginLeft: '8px' }}>
-                    {subFolders.map(sub => (
-                      <button
-                        key={sub.id}
-                        className="btn"
-                        style={{
-                          justifyContent: 'flex-start',
-                          width: '100%',
-                          background: selectedFolder === sub.id ? 'var(--bg-hover)' : 'transparent',
-                          border: 'none',
-                          color: selectedFolder === sub.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                          fontSize: '11px'
-                        }}
-                        onClick={() => {
-                          setViewMode('notes');
-                          setSelectedFolder(sub.id);
-                          setSelectedTag(null);
-                        }}
-                      >
-                        <FolderPlus size={12} aria-hidden="true" />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <FolderTree
+          folders={folders}
+          selectedFolder={selectedFolder}
+          onSelectFolder={(fId) => {
+            setViewMode('notes');
+            setSelectedFolder(fId);
+            setSelectedTag(null);
+          }}
+          onNewFolder={onNewFolder}
+          onNewSubFolder={onNewSubFolder}
+          onRenameFolder={onRenameFolder}
+          onDeleteFolder={onDeleteFolder}
+          lang={lang}
+        />
+      </div>
 
         {/* Tags Section */}
         <div style={{ marginTop: '20px' }}>
@@ -388,7 +343,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </div>
         </div>
-      </div>
 
       {/* Footer System Status & Command Palette Trigger */}
       <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FolderPlus, ChevronRight, ChevronDown, Folder as FolderIcon } from 'lucide-react';
+import { FolderPlus, ChevronRight, ChevronDown, Folder as FolderIcon, Edit2, Trash2, Plus } from 'lucide-react';
 import { Folder } from '../types';
 import { Language, t } from '../utils/i18n';
 
@@ -8,6 +8,9 @@ export interface FolderTreeProps {
   selectedFolder: string | null;
   onSelectFolder: (folderId: string | null) => void;
   onNewFolder: () => void;
+  onNewSubFolder?: (parentId: string) => void;
+  onRenameFolder?: (folderId: string, currentName: string) => void;
+  onDeleteFolder?: (folderId: string) => void;
   lang: Language;
 }
 
@@ -16,6 +19,9 @@ interface FolderNodeProps {
   allFolders: Folder[];
   selectedFolder: string | null;
   onSelectFolder: (folderId: string | null) => void;
+  onNewSubFolder?: (parentId: string) => void;
+  onRenameFolder?: (folderId: string, currentName: string) => void;
+  onDeleteFolder?: (folderId: string) => void;
   expandedIds: Set<string>;
   onToggleExpand: (id: string) => void;
   depth: number;
@@ -26,10 +32,14 @@ const FolderNode: React.FC<FolderNodeProps> = ({
   allFolders,
   selectedFolder,
   onSelectFolder,
+  onNewSubFolder,
+  onRenameFolder,
+  onDeleteFolder,
   expandedIds,
   onToggleExpand,
   depth
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const children = allFolders.filter(f => f.parentId === folder.id);
   const hasChildren = children.length > 0;
   const isExpanded = expandedIds.has(folder.id);
@@ -92,12 +102,12 @@ const FolderNode: React.FC<FolderNodeProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          padding: '4px 8px',
-          paddingLeft: `${Math.max(8, depth * 14)}px`,
+          padding: '4px 6px',
+          paddingLeft: `${Math.max(6, depth * 12)}px`,
           borderRadius: '6px',
           fontSize: depth > 0 ? '11px' : '12px',
           color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-          background: isSelected ? 'var(--bg-hover)' : 'transparent',
+          background: isSelected ? 'var(--bg-hover)' : isHovered ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
           cursor: 'pointer',
           userSelect: 'none',
           outline: 'none',
@@ -105,6 +115,8 @@ const FolderNode: React.FC<FolderNodeProps> = ({
         }}
         onClick={() => onSelectFolder(folder.id)}
         onKeyDown={handleKeyDown}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {hasChildren ? (
           <button
@@ -126,6 +138,50 @@ const FolderNode: React.FC<FolderNodeProps> = ({
         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {folder.name}
         </span>
+
+        {/* Hover Action Buttons: Add Subfolder, Rename, Delete */}
+        {(isHovered || isSelected) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
+            {onNewSubFolder && (
+              <button
+                type="button"
+                className="btn-icon"
+                title="Create Subfolder"
+                aria-label={`Create Subfolder inside ${folder.name}`}
+                style={{ padding: '2px' }}
+                onClick={() => onNewSubFolder(folder.id)}
+              >
+                <Plus size={12} aria-hidden="true" />
+              </button>
+            )}
+
+            {onRenameFolder && (
+              <button
+                type="button"
+                className="btn-icon"
+                title="Rename Folder"
+                aria-label={`Rename Folder ${folder.name}`}
+                style={{ padding: '2px' }}
+                onClick={() => onRenameFolder(folder.id, folder.name)}
+              >
+                <Edit2 size={12} aria-hidden="true" />
+              </button>
+            )}
+
+            {onDeleteFolder && (
+              <button
+                type="button"
+                className="btn-icon"
+                title="Delete Folder"
+                aria-label={`Delete Folder ${folder.name}`}
+                style={{ padding: '2px', color: 'var(--danger)' }}
+                onClick={() => onDeleteFolder(folder.id)}
+              >
+                <Trash2 size={12} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {hasChildren && isExpanded && (
@@ -137,6 +193,9 @@ const FolderNode: React.FC<FolderNodeProps> = ({
               allFolders={allFolders}
               selectedFolder={selectedFolder}
               onSelectFolder={onSelectFolder}
+              onNewSubFolder={onNewSubFolder}
+              onRenameFolder={onRenameFolder}
+              onDeleteFolder={onDeleteFolder}
               expandedIds={expandedIds}
               onToggleExpand={onToggleExpand}
               depth={depth + 1}
@@ -153,6 +212,9 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   selectedFolder,
   onSelectFolder,
   onNewFolder,
+  onNewSubFolder,
+  onRenameFolder,
+  onDeleteFolder,
   lang
 }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(folders.map(f => f.id)));
@@ -178,7 +240,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
         <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
           {t('folders', lang)}
         </span>
-        <button className="btn-icon" onClick={onNewFolder} title="New Folder" aria-label="Create New Folder">
+        <button className="btn-icon" onClick={onNewFolder} title="New Root Folder" aria-label="Create New Root Folder">
           <FolderPlus size={14} aria-hidden="true" />
         </button>
       </div>
@@ -196,6 +258,9 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
             allFolders={folders}
             selectedFolder={selectedFolder}
             onSelectFolder={onSelectFolder}
+            onNewSubFolder={onNewSubFolder}
+            onRenameFolder={onRenameFolder}
+            onDeleteFolder={onDeleteFolder}
             expandedIds={expandedIds}
             onToggleExpand={handleToggleExpand}
             depth={0}
