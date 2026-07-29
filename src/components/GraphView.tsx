@@ -9,7 +9,7 @@ interface GraphViewProps {
   onSelectNote: (id: string) => void;
 }
 
-interface NodeDatum extends d3.SimulationNodeDatum {
+export interface NodeDatum extends d3.SimulationNodeDatum {
   id: string;
   title: string;
   color: string;
@@ -17,13 +17,13 @@ interface NodeDatum extends d3.SimulationNodeDatum {
   linkCount: number;
 }
 
-interface LinkDatum extends d3.SimulationLinkDatum<NodeDatum> {
+export interface LinkDatum extends d3.SimulationLinkDatum<NodeDatum> {
   source: string | NodeDatum;
   target: string | NodeDatum;
 }
 
 // Color palette based on note tags (Obsidian-like)
-function getNodeColor(note: Note, index: number): string {
+export function getNodeColor(note: Note, index: number): string {
   const palette = ['#1f6feb', '#a371f7', '#2ea043', '#d29922', '#f85149', '#3fb950', '#58a6ff', '#e3b341'];
   if (note.tags && note.tags.length > 0) {
     // Deterministic color from first tag
@@ -36,11 +36,62 @@ function getNodeColor(note: Note, index: number): string {
   return palette[index % palette.length];
 }
 
+export function calculateNodeRadius(linkCount: number): number {
+  return Math.min(Math.max(6 + linkCount * 2, 6), 20);
+}
+
+export function buildGraphData(notes: Note[]): {
+  nodes: NodeDatum[];
+  links: LinkDatum[];
+  adjacencyList: Map<string, Set<string>>;
+} {
+  const linkCounts: Record<string, number> = {};
+  const links: LinkDatum[] = [];
+
+  notes.forEach(note => {
+    linkCounts[note.id] = linkCounts[note.id] || 0;
+    const wikiLinks = extractWikiLinks(note.content || '');
+    wikiLinks.forEach(targetTitle => {
+      const targetNote = notes.find(n => n.title.toLowerCase().trim() === targetTitle.toLowerCase().trim());
+      if (targetNote) {
+        // avoid duplicate links
+        const alreadyExists = links.some(
+          l => (l.source === note.id && l.target === targetNote.id) ||
+               (l.source === targetNote.id && l.target === note.id)
+        );
+        if (!alreadyExists) {
+          links.push({ source: note.id, target: targetNote.id });
+          linkCounts[note.id] = (linkCounts[note.id] || 0) + 1;
+          linkCounts[targetNote.id] = (linkCounts[targetNote.id] || 0) + 1;
+        }
+      }
+    });
+  });
+
+  const nodes: NodeDatum[] = notes.map((note, idx) => ({
+    id: note.id,
+    title: note.title,
+    color: getNodeColor(note, idx),
+    linkCount: linkCounts[note.id] || 0,
+    radius: calculateNodeRadius(linkCounts[note.id] || 0),
+  }));
+
+  const adjacencyList = new Map<string, Set<string>>();
+  nodes.forEach(n => adjacencyList.set(n.id, new Set()));
+  links.forEach(l => {
+    const sId = typeof l.source === 'string' ? l.source : l.source.id;
+    const tId = typeof l.target === 'string' ? l.target : l.target.id;
+    adjacencyList.get(sId)?.add(tId);
+    adjacencyList.get(tId)?.add(sId);
+  });
+
+  return { nodes, links, adjacencyList };
+}
+
 export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredNodeIdRef = useRef<string | null>(null);
-  // Store simulation and zoom refs so controls can access them
   const simulationRef = useRef<d3.Simulation<NodeDatum, LinkDatum> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<HTMLCanvasElement, unknown> | null>(null);
   const transformRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
@@ -54,44 +105,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
     if (!ctx) return;
 
     // === Build Graph Data ===
-    const linkCounts: Record<string, number> = {};
-    const links: LinkDatum[] = [];
-
-    notes.forEach(note => {
-      linkCounts[note.id] = linkCounts[note.id] || 0;
-      const wikiLinks = extractWikiLinks(note.content);
-      wikiLinks.forEach(targetTitle => {
-        const targetNote = notes.find(n => n.title.toLowerCase().trim() === targetTitle.toLowerCase().trim());
-        if (targetNote) {
-          // avoid duplicate links
-          const alreadyExists = links.some(
-            l => (l.source === note.id && l.target === targetNote.id) ||
-                 (l.source === targetNote.id && l.target === note.id)
-          );
-          if (!alreadyExists) {
-            links.push({ source: note.id, target: targetNote.id });
-          }
-          linkCounts[note.id] = (linkCounts[note.id] || 0) + 1;
-          linkCounts[targetNote.id] = (linkCounts[targetNote.id] || 0) + 1;
-        }
-      });
-    });
-
-    const nodes: NodeDatum[] = notes.map((note, idx) => ({
-      id: note.id,
-      title: note.title,
-      color: getNodeColor(note, idx),
-      linkCount: linkCounts[note.id] || 0,
-      radius: Math.min(Math.max(6 + (linkCounts[note.id] || 0) * 2, 6), 20),
-    }));
-
-    // Adjacency list for hover highlighting
-    const adjacencyList = new Map<string, Set<string>>();
-    nodes.forEach(n => adjacencyList.set(n.id, new Set()));
-    links.forEach(l => {
-      adjacencyList.get(l.source as string)?.add(l.target as string);
-      adjacencyList.get(l.target as string)?.add(l.source as string);
-    });
+    const { nodes, links, adjacencyList } = buildGraphData(notes);
 
     // === Draw Function ===
     function draw() {
@@ -168,7 +182,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
 
         ctx.shadowBlur = 0;
 
-        // Labels: always show for hub nodes (many connections), hovered, neighbors, or zoomed in
+        // Labels: show for hub nodes, hovered, neighbors, or zoomed in
         const showLabel = !isDimmed && (isHovered || isNeighbor || t.k > 1.5 || node.radius >= 12);
         if (showLabel) {
           const fontSize = Math.max(12 / t.k, 7);
@@ -188,7 +202,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
       .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(d => {
         const s = d.source as NodeDatum;
         const t = d.target as NodeDatum;
-        return 80 + (s.linkCount + t.linkCount) * 4;
+        return 80 + ((s.linkCount || 0) + (t.linkCount || 0)) * 4;
       }))
       .force('center', d3.forceCenter(container.clientWidth / 2, container.clientHeight / 2))
       .force('collide', d3.forceCollide<NodeDatum>().radius(d => d.radius + 18).iterations(3))
@@ -333,7 +347,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
         </div>
       </div>
 
-      {/* Zoom Controls (bottom right) */}
+      {/* Zoom Controls */}
       <div style={{
         position: 'absolute', bottom: '20px', right: '20px', zIndex: 10,
         display: 'flex', flexDirection: 'column', gap: '8px'

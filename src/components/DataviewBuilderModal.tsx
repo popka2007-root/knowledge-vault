@@ -14,6 +14,8 @@ export const DataviewBuilderModal: React.FC<DataviewBuilderModalProps> = ({
   onInsertQuery,
   availableTags
 }) => {
+  const [queryType, setQueryType] = useState<'TABLE' | 'LIST' | 'TASK'>('TABLE');
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'pending' | 'completed' | 'overdue'>('all');
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [fields, setFields] = useState<string>('file.name, file.mtime, tags');
   const [sortField, setSortField] = useState<string>('file.mtime');
@@ -23,10 +25,23 @@ export const DataviewBuilderModal: React.FC<DataviewBuilderModalProps> = ({
   if (!isOpen) return null;
 
   const handleGenerate = () => {
-    let query = `\`\`\`dataview\nTABLE ${fields}\n`;
+    let query = `\`\`\`dataview\n`;
+    if (queryType === 'TABLE') {
+      query += `TABLE ${fields}\n`;
+    } else if (queryType === 'LIST') {
+      query += `LIST\n`;
+    } else if (queryType === 'TASK') {
+      query += `TASK\n`;
+    }
+
     if (selectedTag) {
       query += `FROM #${selectedTag}\n`;
     }
+
+    if (queryType === 'TASK' && taskStatusFilter !== 'all') {
+      query += `WHERE ${taskStatusFilter}\n`;
+    }
+
     if (sortField) {
       query += `SORT ${sortField} ${sortOrder}\n`;
     }
@@ -54,29 +69,60 @@ export const DataviewBuilderModal: React.FC<DataviewBuilderModalProps> = ({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
           <div>
+            <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Query Type</label>
+            <select
+              value={queryType}
+              onChange={(e) => setQueryType(e.target.value as 'TABLE' | 'LIST' | 'TASK')}
+              style={{ width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
+            >
+              <option value="TABLE">TABLE (Structured Grid)</option>
+              <option value="LIST">LIST (Bullet List of Notes)</option>
+              <option value="TASK">TASK (Task List / Action Items)</option>
+            </select>
+          </div>
+
+          <div>
             <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Filter Tag (FROM)</label>
             <select
               value={selectedTag}
               onChange={(e) => setSelectedTag(e.target.value)}
               style={{ width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
             >
-              <option value="">All Notes (No Tag Filter)</option>
+              <option value="">All Notes / Tasks (No Tag Filter)</option>
               {availableTags.map(tag => (
                 <option key={tag} value={tag}>#{tag}</option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Fields (TABLE)</label>
-            <input
-              type="text"
-              value={fields}
-              onChange={(e) => setFields(e.target.value)}
-              placeholder="file.name, file.mtime, tags"
-              style={{ width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
-            />
-          </div>
+          {queryType === 'TABLE' && (
+            <div>
+              <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Fields (TABLE)</label>
+              <input
+                type="text"
+                value={fields}
+                onChange={(e) => setFields(e.target.value)}
+                placeholder="file.name, file.mtime, tags, status, priority"
+                style={{ width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
+              />
+            </div>
+          )}
+
+          {queryType === 'TASK' && (
+            <div>
+              <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Task Status Filter</label>
+              <select
+                value={taskStatusFilter}
+                onChange={(e) => setTaskStatusFilter(e.target.value as any)}
+                style={{ width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
+              >
+                <option value="all">All Tasks</option>
+                <option value="pending">Pending (Incomplete)</option>
+                <option value="completed">Completed</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <div style={{ flex: 1 }}>
@@ -86,8 +132,19 @@ export const DataviewBuilderModal: React.FC<DataviewBuilderModalProps> = ({
                 onChange={(e) => setSortField(e.target.value)}
                 style={{ width: '100%', padding: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', outline: 'none' }}
               >
-                <option value="file.mtime">Last Modified (mtime)</option>
-                <option value="file.name">Note Title (name)</option>
+                {queryType === 'TASK' ? (
+                  <>
+                    <option value="priority">Priority</option>
+                    <option value="dueDate">Due Date</option>
+                    <option value="title">Task Title</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="file.mtime">Last Modified (mtime)</option>
+                    <option value="file.name">Note Title (name)</option>
+                    <option value="file.ctime">Created Date (ctime)</option>
+                  </>
+                )}
               </select>
             </div>
             <div style={{ width: '100px' }}>

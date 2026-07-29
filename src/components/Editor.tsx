@@ -24,7 +24,9 @@ import { BlockEditor } from './BlockEditor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { MarkTextEditor } from './marktext/MarkTextEditor';
 import { CodeMirrorEditor } from './marktext/codemirror/CodeMirrorEditor';
+import { TableEditor } from './marktext/TableEditor';
 import { DataviewBuilderModal } from './DataviewBuilderModal';
+import { extractMarkdownTables } from '../utils/editorUtils';
 
 const escapeHtml = (str: string) => {
   if (!str) return '';
@@ -67,6 +69,7 @@ export const Editor: React.FC<EditorProps> = ({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [showOutline, setShowOutline] = useState(false);
   const [useBlockEditor, setUseBlockEditor] = useState(!!note?.blocks?.length);
+  const [showTableEditor, setShowTableEditor] = useState(false);
 
   // WikiLink Autocomplete Popup state
   const [wikiSearch, setWikiSearch] = useState<string | null>(null);
@@ -302,9 +305,15 @@ export const Editor: React.FC<EditorProps> = ({
           .replace(/&#039;/g, "'");
         
         const queryRes = executeDataviewQuery(unescapedQuery, allNotes, note.tasks || []);
-        const rowsHtml = queryRes.rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('');
-        const headersHtml = queryRes.headers ? `<thead><tr style="background:var(--bg-tertiary);">${queryRes.headers.map(h => `<th style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(h))}</th>`).join('')}</tr></thead>` : '';
-        placeholders.push(`<div style="margin:14px 0; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"><div style="background:var(--bg-secondary); padding:8px 12px; font-size:12px; font-weight:600; color:var(--accent-hover);">📊 Dataview Query Result (${queryRes.totalCount} items)</div><table style="width:100%; border-collapse:collapse; font-size:12.5px;">${headersHtml}<tbody>${rowsHtml}</tbody></table></div>`);
+        
+        if (queryRes.type === 'list') {
+          const listItemsHtml = queryRes.rows.map(r => `<li style="padding:4px 0;">${escapeHtml(String(r[0]))}</li>`).join('');
+          placeholders.push(`<div style="margin:14px 0; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"><div style="background:var(--bg-secondary); padding:8px 12px; font-size:12px; font-weight:600; color:var(--accent-hover);">📊 Dataview List Result (${queryRes.totalCount} items)</div><ul style="margin:0; padding:12px 24px; font-size:13px; background:var(--bg-primary); list-style-type:disc;">${listItemsHtml}</ul></div>`);
+        } else {
+          const rowsHtml = queryRes.rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 12px; border:1px solid var(--border-color);">${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('');
+          const headersHtml = queryRes.headers ? `<thead><tr style="background:var(--bg-tertiary);">${queryRes.headers.map(h => `<th style="padding:6px 12px; border:1px solid var(--border-color); text-align:left;">${escapeHtml(String(h))}</th>`).join('')}</tr></thead>` : '';
+          placeholders.push(`<div style="margin:14px 0; border:1px solid var(--border-color); border-radius:8px; overflow:hidden;"><div style="background:var(--bg-secondary); padding:8px 12px; font-size:12px; font-weight:600; color:var(--accent-hover);">📊 Dataview Query Result (${queryRes.totalCount} items)</div><table style="width:100%; border-collapse:collapse; font-size:12.5px;">${headersHtml}<tbody>${rowsHtml}</tbody></table></div>`);
+        }
         return `___BLOCK_${placeholders.length - 1}___`;
       });
       
@@ -470,6 +479,21 @@ export const Editor: React.FC<EditorProps> = ({
           
           <button 
             className="btn" 
+            onClick={() => {
+              const currentTables = extractMarkdownTables(content);
+              if (!showTableEditor && currentTables.length === 0) {
+                handleContentChange(content + '\n| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n');
+              }
+              setShowTableEditor(!showTableEditor);
+            }} 
+            aria-label="Toggle visual table editor"
+            style={{ padding: '4px 10px', fontSize: '12px', background: showTableEditor ? 'var(--bg-hover)' : undefined }}
+          >
+            <span>Table Editor</span>
+          </button>
+
+          <button 
+            className="btn" 
             onClick={() => setUseBlockEditor(!useBlockEditor)} 
             aria-label={useBlockEditor ? "Switch to markdown mode" : "Switch to block mode"}
             style={{ padding: '4px 10px', fontSize: '12px' }}
@@ -599,12 +623,30 @@ export const Editor: React.FC<EditorProps> = ({
                 }}
               />
             ) : (
-              <CodeMirrorEditor
-                content={content}
-                onChange={handleContentChange}
-                fontSize={fontSize}
-                fontFamily={fontFamily}
-              />
+              <div>
+                <CodeMirrorEditor
+                  content={content}
+                  onChange={handleContentChange}
+                  fontSize={fontSize}
+                  fontFamily={fontFamily}
+                  allNotes={allNotes}
+                />
+
+                {(showTableEditor || extractMarkdownTables(content).length > 0) && (
+                  <div style={{ marginTop: '20px' }}>
+                    {extractMarkdownTables(content).map((tbl, i) => (
+                      <TableEditor
+                        key={`${i}-${tbl.index}`}
+                        initialMarkdown={tbl.raw}
+                        onUpdateTable={(newTableMd) => {
+                          const newContent = content.replace(tbl.raw, newTableMd);
+                          handleContentChange(newContent);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </ErrorBoundary>
 

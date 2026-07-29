@@ -2,10 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { foldGutter, codeFolding, foldKeymap, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { autocompletion, CompletionContext } from '@codemirror/autocomplete';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { SlashMenu, SlashMenuItem } from '../SlashMenu';
 import { FloatingToolbar } from '../FloatingToolbar';
+import { Note } from '../../../types';
+import { applySlashCommand } from '../../../utils/editorUtils';
 import { 
   Heading1, Heading2, Heading3, Table, Code, Sigma, 
   ListChecks, MessageSquareQuote, Minus 
@@ -17,6 +21,7 @@ interface CodeMirrorEditorProps {
   placeholder?: string;
   fontSize?: number;
   fontFamily?: string;
+  allNotes?: Note[];
 }
 
 export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
@@ -24,7 +29,8 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   onChange,
   placeholder = 'Type / for commands...',
   fontSize = 16,
-  fontFamily = 'var(--font-sans)'
+  fontFamily = 'var(--font-sans)',
+  allNotes = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -51,15 +57,44 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
         history(),
         drawSelection(),
         dropCursor(),
+        codeFolding(),
+        foldGutter(),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         EditorState.allowMultipleSelections.of(true),
         rectangularSelection(),
         crosshairCursor(),
         highlightActiveLine(),
         markdown({ base: markdownLanguage }),
         oneDark,
+        autocompletion({
+          override: [
+            (ctx: CompletionContext) => {
+              const word = ctx.matchBefore(/\[\[[^\]]*/);
+              if (!word) return null;
+              const search = word.text.slice(2).toLowerCase();
+              const matches = allNotes.filter(n => n.title.toLowerCase().includes(search));
+              if (matches.length === 0) return null;
+              return {
+                from: word.from + 2,
+                options: matches.map(n => ({
+                  label: n.title,
+                  detail: 'WikiLink Note',
+                  apply: (view, completion, from, to) => {
+                    const insertStr = `${completion.label}]]`;
+                    view.dispatch({
+                      changes: { from, to: ctx.pos, insert: insertStr },
+                      selection: { anchor: from + insertStr.length }
+                    });
+                  }
+                }))
+              };
+            }
+          ]
+        }),
         keymap.of([
           ...defaultKeymap,
           ...historyKeymap,
+          ...foldKeymap,
           indentWithTab
         ]),
         EditorView.updateListener.of((update) => {
@@ -104,7 +139,10 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
           },
           '.cm-scroller': { overflow: 'auto', fontFamily: fontFamily },
           '.cm-content': { padding: '20px 24px' },
-          '.cm-line': { lineHeight: '1.7' }
+          '.cm-line': { lineHeight: '1.7' },
+          '.cm-foldGutter': { width: '16px', color: 'var(--text-muted)' },
+          '.cm-foldGutter .cm-gutterElement': { cursor: 'pointer', opacity: 0.7 },
+          '.cm-foldGutter .cm-gutterElement:hover': { opacity: 1, color: 'var(--accent-hover)' }
         })
       ]
     });
@@ -126,8 +164,10 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
     if (viewRef.current) {
       const currentDoc = viewRef.current.state.doc.toString();
       if (currentDoc !== content) {
+        const currentSel = viewRef.current.state.selection;
         viewRef.current.dispatch({
-          changes: { from: 0, to: currentDoc.length, insert: content }
+          changes: { from: 0, to: currentDoc.length, insert: content },
+          selection: currentSel.main.to <= content.length ? currentSel : undefined
         });
       }
     }
@@ -136,7 +176,21 @@ export const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   const insertTextAtCursor = (prefix: string, suffix: string = '') => {
     if (!viewRef.current) return;
     const view = viewRef.current;
+    const currentDoc = view.state.doc.toString();
     const { from, to } = view.state.selection.main;
+    
+    // Check if line before cursor has a slash command trigger e.g. /table or /h1
+    const line = view.state.doc.lineAt(from);
+    if (line.text.trim().startsWith('/') && from === to) {
+      const { newContent, newCursor } = applySlashCommand(currentDoc, from, prefix + suffix);
+      view.dispatch({
+        changes: { from: 0, to: currentDoc.length, insert: newContent },
+        selection: { anchor: newCursor }
+      });
+      view.focus();
+      return;
+    }
+
     const selected = view.state.sliceDoc(from, to);
     const replacement = prefix + selected + suffix;
     view.dispatch({

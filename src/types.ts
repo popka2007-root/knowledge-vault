@@ -1,5 +1,6 @@
 export type ViewMode = 'notes' | 'canvas' | 'graph' | 'dashboard' | 'calendar' | 'tasks' | 'kanban' | 'trash';
 export type Theme = 'dark' | 'light' | 'cyberpunk' | 'sepia';
+export type Accent = 'blue' | 'purple' | 'emerald' | 'amber';
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
 
 export interface PageBanner {
@@ -67,6 +68,8 @@ export interface Note {
   isDeleted?: boolean;
   deletedAt?: number;
   history?: NoteSnapshot[];
+  status?: string;
+  kanbanStatus?: string;
 }
 
 export interface Folder {
