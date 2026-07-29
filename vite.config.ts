@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // Set relative base path for GitHub Pages deployment
+  base: process.env.GITHUB_ACTIONS ? '/knowledge-vault/' : './',
   server: {
     port: 3000,
     host: true,
