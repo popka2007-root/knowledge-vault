@@ -104,9 +104,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ notes, onUpdateNote, l
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckSquare size={22} color="var(--accent-hover)" />
-            Task Manager & Productivity Hub
+            Менеджер задач и привычек
           </h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Track deadlines, projects, priorities, and daily streaks</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Управление задачами, сроками, приоритетами и сериями успехов</p>
         </div>
 
         {/* Productivity Widgets */}
@@ -114,15 +114,17 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ notes, onUpdateNote, l
           <div style={{ background: 'var(--bg-tertiary)', padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Flame size={22} color="#f0883e" />
             <div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Streak</span>
-              <div style={{ fontSize: '16px', fontWeight: '700', color: '#f0883e' }}>{streakDays} Days 🔥</div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Серия</span>
+              <div style={{ fontSize: '16px', fontWeight: '700', color: '#f0883e', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {streakDays} дн. <Flame size={16} color="#f0883e" />
+              </div>
             </div>
           </div>
 
           <div style={{ background: 'var(--bg-tertiary)', padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <TrendingUp size={22} color="var(--success)" />
             <div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Completion</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Выполнение</span>
               <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--success)' }}>{completionRate}% ({completedCount}/{totalCount})</div>
             </div>
           </div>

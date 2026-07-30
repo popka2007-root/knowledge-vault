@@ -56,7 +56,7 @@ export const translations: Record<Language, Record<string, string>> = {
     totalNotes: 'Всего заметок',
     totalTasks: 'Всего задач',
     completedTasks: 'Выполнено задач',
-    activeStreak: 'Серия дней 🔥',
+    activeStreak: 'Серия дней',
     productivityScore: 'Продуктивность',
     recentNotes: 'Недавние заметки',
     quickActions: 'Быстрые действия',

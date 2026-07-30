@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Note } from '../../types';
-import { Plus, CheckCircle2, Clock, ListTodo, CheckSquare, Search, Tag, Filter, Award } from 'lucide-react';
+import { Plus, CheckCircle2, Clock, ListTodo, CheckSquare, Search, Tag, Filter, Award, Kanban, Star, ArrowLeft, ArrowRight } from 'lucide-react';
 
 export type KanbanColumnId = 'backlog' | 'todo' | 'in_progress' | 'done';
 
@@ -124,11 +124,13 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   const metrics = calculateKanbanMetrics(notes);
 
   const columns: { id: KanbanColumnId; title: string; color: string; icon: React.ReactNode }[] = [
-    { id: 'backlog', title: lang === 'ru' ? '📥 Бэклог' : '📥 Backlog', color: '#8b949e', icon: <ListTodo size={16} /> },
-    { id: 'todo', title: lang === 'ru' ? '🎯 В планах' : '🎯 To Do', color: '#388bfd', icon: <Clock size={16} /> },
-    { id: 'in_progress', title: lang === 'ru' ? '⚡ В процессе' : '⚡ In Progress', color: '#d29922', icon: <CheckSquare size={16} /> },
-    { id: 'done', title: lang === 'ru' ? '✅ Готово' : '✅ Completed', color: '#2ea043', icon: <CheckCircle2 size={16} /> }
+    { id: 'backlog', title: lang === 'ru' ? 'Бэклог' : 'Backlog', color: '#8b949e', icon: <ListTodo size={16} color="#8b949e" /> },
+    { id: 'todo', title: lang === 'ru' ? 'В планах' : 'To Do', color: '#388bfd', icon: <Clock size={16} color="#388bfd" /> },
+    { id: 'in_progress', title: lang === 'ru' ? 'В процессе' : 'In Progress', color: '#d29922', icon: <CheckSquare size={16} color="#d29922" /> },
+    { id: 'done', title: lang === 'ru' ? 'Готово' : 'Completed', color: '#2ea043', icon: <CheckCircle2 size={16} color="#2ea043" /> }
   ];
+
+  const columnOrder: KanbanColumnId[] = ['backlog', 'todo', 'in_progress', 'done'];
 
   const handleToggleFavorite = (note: Note, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -137,6 +139,17 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
       isFavorite: !note.isFavorite,
       updatedAt: Date.now()
     });
+  };
+
+  const handleMoveColumnStep = (note: Note, direction: 'prev' | 'next', e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentStatus = getNoteStatus(note);
+    const currentIndex = columnOrder.indexOf(currentStatus);
+    const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    if (newIndex >= 0 && newIndex < columnOrder.length) {
+      const updated = moveNoteToColumn(note, columnOrder[newIndex]);
+      onUpdateNote(updated);
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, noteId: string) => {
@@ -180,11 +193,11 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div>
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>📋</span>
+              <Kanban size={24} color="var(--accent-hover)" />
               <span>{lang === 'ru' ? 'Канбан Доска Задач и Проектов' : 'Agile Kanban Board'}</span>
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              {lang === 'ru' ? 'Наглядное управление задачами и заметками в стиле Agile' : 'Agile visual task and note status management'}
+              {lang === 'ru' ? 'Наглядное управление задачами и заметками в стиле Agile (YouGile)' : 'Agile visual task and note status management'}
             </p>
           </div>
 
@@ -278,7 +291,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
       {/* Board Columns Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', alignItems: 'start', flex: 1 }}>
-        {columns.map(col => {
+        {columns.map((col, colIdx) => {
           const colNotes = filterKanbanNotes(notes, col.id, search, filterTag);
           const isDragOver = dragOverColumnId === col.id;
 
@@ -302,6 +315,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               {/* Column Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '10px', borderBottom: `2px solid ${col.color}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {col.icon}
                   <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>{col.title}</span>
                   <span style={{ fontSize: '11px', fontWeight: 600, background: 'var(--bg-tertiary)', color: col.color, padding: '2px 8px', borderRadius: '12px' }}>
                     {colNotes.length}
@@ -354,10 +368,11 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           </h4>
                           <button
                             onClick={(e) => handleToggleFavorite(n, e)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: n.isFavorite ? '#ffb703' : 'var(--text-muted)', fontSize: '14px' }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: n.isFavorite ? '#ffb703' : 'var(--text-muted)' }}
                             title="Toggle favorite"
+                            aria-label="Toggle favorite"
                           >
-                            ★
+                            <Star size={14} fill={n.isFavorite ? '#ffb703' : 'none'} color={n.isFavorite ? '#ffb703' : 'var(--text-muted)'} />
                           </button>
                         </div>
 
@@ -379,7 +394,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           </div>
                         )}
 
-                        {/* Card Tags & Footer */}
+                        {/* YouGile Style Move Controls & Card Tags */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                             {n.tags && n.tags.slice(0, 3).map(tag => (
@@ -388,9 +403,30 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                               </span>
                             ))}
                           </div>
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                            {new Date(n.updatedAt).toLocaleDateString()}
-                          </span>
+                          
+                          {/* Quick Move Arrows */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {colIdx > 0 && (
+                              <button
+                                className="btn-icon"
+                                style={{ padding: '2px' }}
+                                title="Move Left"
+                                onClick={(e) => handleMoveColumnStep(n, 'prev', e)}
+                              >
+                                <ArrowLeft size={12} />
+                              </button>
+                            )}
+                            {colIdx < columnOrder.length - 1 && (
+                              <button
+                                className="btn-icon"
+                                style={{ padding: '2px' }}
+                                title="Move Right"
+                                onClick={(e) => handleMoveColumnStep(n, 'next', e)}
+                              >
+                                <ArrowRight size={12} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

@@ -268,7 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={handleExportObsidian}
           >
             <Download size={12} aria-hidden="true" />
-            <span>Export</span>
+            <span>{lang === 'ru' ? 'Экспорт' : 'Export'}</span>
           </button>
           <button 
             className="btn" 
@@ -277,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload size={12} aria-hidden="true" />
-            <span>Import</span>
+            <span>{lang === 'ru' ? 'Импорт' : 'Import'}</span>
           </button>
           <input 
             type="file" 
@@ -355,7 +355,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Command size={13} aria-hidden="true" />
-              <span>Palette</span>
+              <span>{lang === 'ru' ? 'Палитра' : 'Palette'}</span>
             </div>
             <span style={{ color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '1px 4px', borderRadius: '4px' }}>Ctrl+P</span>
           </button>
@@ -364,9 +364,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="btn"
             style={{ padding: '4px 8px', fontSize: '11px' }}
             onClick={() => exportVaultToJSON(notes, folders)}
-            title="Export Full JSON Backup"
+            title={lang === 'ru' ? 'Экспорт полной JSON резервной копии' : 'Export Full JSON Backup'}
           >
-            Backup
+            {lang === 'ru' ? 'Копия' : 'Backup'}
           </button>
         </div>
 
